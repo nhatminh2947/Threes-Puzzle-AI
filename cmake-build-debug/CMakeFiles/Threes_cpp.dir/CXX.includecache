@@ -6,7 +6,7 @@
 
 #IncludeRegexTransform: 
 
-/home/nhatminh2947/study-master/TCG/projects/Threes-cpp/Action.h
+/home/nhatminh2947/study-master/TCG/projects/threes-cpp/Action.h
 algorithm
 -
 unordered_map
@@ -14,9 +14,9 @@ unordered_map
 string
 -
 board.h
-/home/nhatminh2947/study-master/TCG/projects/Threes-cpp/board.h
+/home/nhatminh2947/study-master/TCG/projects/threes-cpp/board.h
 
-/home/nhatminh2947/study-master/TCG/projects/Threes-cpp/Agent.h
+/home/nhatminh2947/study-master/TCG/projects/threes-cpp/Agent.h
 string
 -
 random
@@ -30,11 +30,11 @@ type_traits
 algorithm
 -
 board.h
-/home/nhatminh2947/study-master/TCG/projects/Threes-cpp/board.h
+/home/nhatminh2947/study-master/TCG/projects/threes-cpp/board.h
 Action.h
-/home/nhatminh2947/study-master/TCG/projects/Threes-cpp/Action.h
+/home/nhatminh2947/study-master/TCG/projects/threes-cpp/Action.h
 
-/home/nhatminh2947/study-master/TCG/projects/Threes-cpp/Threes.cpp
+/home/nhatminh2947/study-master/TCG/projects/threes-cpp/Threes.cpp
 iostream
 -
 fstream
@@ -44,17 +44,17 @@ iterator
 string
 -
 board.h
-/home/nhatminh2947/study-master/TCG/projects/Threes-cpp/board.h
+/home/nhatminh2947/study-master/TCG/projects/threes-cpp/board.h
 Action.h
-/home/nhatminh2947/study-master/TCG/projects/Threes-cpp/Action.h
+/home/nhatminh2947/study-master/TCG/projects/threes-cpp/Action.h
 Agent.h
-/home/nhatminh2947/study-master/TCG/projects/Threes-cpp/Agent.h
+/home/nhatminh2947/study-master/TCG/projects/threes-cpp/Agent.h
 episode.h
-/home/nhatminh2947/study-master/TCG/projects/Threes-cpp/episode.h
+/home/nhatminh2947/study-master/TCG/projects/threes-cpp/episode.h
 statistic.h
-/home/nhatminh2947/study-master/TCG/projects/Threes-cpp/statistic.h
+/home/nhatminh2947/study-master/TCG/projects/threes-cpp/statistic.h
 
-/home/nhatminh2947/study-master/TCG/projects/Threes-cpp/board.h
+/home/nhatminh2947/study-master/TCG/projects/threes-cpp/board.h
 array
 -
 iostream
@@ -68,7 +68,7 @@ vector
 cstdlib
 -
 
-/home/nhatminh2947/study-master/TCG/projects/Threes-cpp/episode.h
+/home/nhatminh2947/study-master/TCG/projects/threes-cpp/episode.h
 list
 -
 vector
@@ -84,13 +84,13 @@ chrono
 numeric
 -
 board.h
-/home/nhatminh2947/study-master/TCG/projects/Threes-cpp/board.h
+/home/nhatminh2947/study-master/TCG/projects/threes-cpp/board.h
 Action.h
-/home/nhatminh2947/study-master/TCG/projects/Threes-cpp/Action.h
+/home/nhatminh2947/study-master/TCG/projects/threes-cpp/Action.h
 Agent.h
-/home/nhatminh2947/study-master/TCG/projects/Threes-cpp/Agent.h
+/home/nhatminh2947/study-master/TCG/projects/threes-cpp/Agent.h
 
-/home/nhatminh2947/study-master/TCG/projects/Threes-cpp/statistic.h
+/home/nhatminh2947/study-master/TCG/projects/threes-cpp/statistic.h
 list
 -
 algorithm
@@ -100,11 +100,11 @@ iostream
 sstream
 -
 board.h
-/home/nhatminh2947/study-master/TCG/projects/Threes-cpp/board.h
+/home/nhatminh2947/study-master/TCG/projects/threes-cpp/board.h
 Action.h
-/home/nhatminh2947/study-master/TCG/projects/Threes-cpp/Action.h
+/home/nhatminh2947/study-master/TCG/projects/threes-cpp/Action.h
 Agent.h
-/home/nhatminh2947/study-master/TCG/projects/Threes-cpp/Agent.h
+/home/nhatminh2947/study-master/TCG/projects/threes-cpp/Agent.h
 episode.h
-/home/nhatminh2947/study-master/TCG/projects/Threes-cpp/episode.h
+/home/nhatminh2947/study-master/TCG/projects/threes-cpp/episode.h
 

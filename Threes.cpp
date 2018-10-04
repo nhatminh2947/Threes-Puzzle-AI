@@ -58,7 +58,9 @@ int main(int argc, const char *argv[]) {
 //    GreedyPlayer player(play_args);
 //    OneDirectionPlayer player(play_args);
 //    MaxRewardPlayer player(play_args);
-    LessTilePlayer player(play_args);
+//    LessTilePlayer player(play_args);
+//    MaxMergePlayer player(play_args);
+    SmartPlayer player(play_args);
     RandomEnvironment evil(evil_args);
 
     while (!stat.IsFinished()) {
