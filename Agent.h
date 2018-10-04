@@ -6,6 +6,7 @@
 #include <map>
 #include <type_traits>
 #include <algorithm>
+#include <set>
 
 #include "board.h"
 #include "Action.h"
@@ -418,57 +419,260 @@ private:
 };
 
 class Node {
-    Board board_;
-    bool is_player;
-    
 
 public:
-    float CalculateHeuristicValue() {
-        return 0;
-    }
+    Node(Board board, std::set<int> bag, bool is_player, Action move, bool is_terminal = false) : board_(board),
+                                                                                                  is_player_(
+                                                                                                          is_player),
+                                                                                                  move_(move),
+                                                                                                  score_(0),
+                                                                                                  is_terminal_(
+                                                                                                          is_terminal),
+                                                                                                  bag_(bag) {}
 
     bool IsTerminal() {
-        return false;
+        return is_terminal_;
     }
 
     bool IsPlayer() {
-        return false;
+        return is_player_;
+    }
+
+    float CalculateHeuristicValue() {
+        int empty = CountEmptyTile(board_);
+        int merges = CountMergeableTile(board_);
+
+        return SCORE_EMPTY_WEIGHT * empty + SCORE_MERGES_WEIGHT * merges;
+    }
+
+    Node Slide(int direction) {
+        Board temp_board = Board(board_);
+        temp_board.Slide(direction);
+
+        for (int d = 0; d < 4 && !is_terminal_; ++d) {
+            is_terminal_ |= Board(temp_board).Slide(d);
+        }
+
+        return Node(temp_board, bag_, true, Action::Slide(direction), is_terminal_);
+    }
+
+    Node Place(int position, Board::cell_t tile) {
+        Board temp_board = Board(board_);
+        temp_board.Place(position, tile);
+        bag_.erase(tile);
+
+        return Node(temp_board, bag_, false, Action::Place(position, tile), false);
+    }
+
+private:
+    static constexpr float SCORE_SUM_POWER = 3.5f;
+    static constexpr float SCORE_SUM_WEIGHT = 11.0f;
+    static constexpr float SCORE_MERGES_WEIGHT = 700.0f;
+    static constexpr float SCORE_EMPTY_WEIGHT = 270.0f;
+    static constexpr float SCORE_LOST_PENALTY = -999999999.0f;
+
+    bool is_player_;
+    bool is_terminal_;
+    float score_;
+    std::set<int> bag_;
+    Action move_;
+    Board board_;
+
+    bool IsMergeable(Board::cell_t tile_a, Board::cell_t tile_b) {
+        return (tile_a == 1 && tile_b == 2) || (tile_a == 2 && tile_b == 1) ||
+               (tile_a == tile_b && tile_a >= 3 && tile_b >= 3);
+    }
+
+    int CountMergeableTile(Board board) {
+        int count = 0;
+        int dx[] = {-1, 0, 1, 0};
+        int dy[] = {0, 1, 0, -1};
+
+        for (int i = 0; i < 4; ++i) {
+            for (int j = 0; j < 4; ++j) {
+                for (int k = 0; k < 4; ++k) {
+                    int x = i + dx[k];
+                    int y = j + dy[k];
+
+                    if (0 <= x && x <= 4 && 0 <= y && y <= 4) {
+                        count += (IsMergeable(board[i][j], board[x][y]));
+                    }
+                }
+            }
+        }
+
+        return count / 2;
+    }
+
+    int CountEmptyTile(Board board) {
+        int count = 0;
+        for (int i = 0; i < 16; ++i) {
+            count += int(board(i) == 0);
+        }
+
+        return count;
     }
 };
 
-class ExpectimaxPlayer: public Player {
+class ExpectimaxPlayer : public Player {
 public:
     ExpectimaxPlayer(const std::string &args = "") : Player("name=Expectimax role=Player " + args) {}
 
     Action TakeAction(const Board &board, const Action &evil_action) override {
+        float max_score = INT64_MIN;
+        int chosen_direction = -1;
+        bag_.erase(Action::Place(evil_action).tile());
 
+        if (bag_.empty()) {
+            bag_ = {1, 2, 3};
+        }
+
+        for (int direction : directions_) {
+            Board temp_board = board;
+
+            Board::reward_t reward = temp_board.Slide(direction);
+            if (reward == -1) continue;
+
+            float score = Expectiminimax(temp_board, 3, false, bag_);
+
+            if (score > max_score) {
+                max_score = score;
+                chosen_direction = direction;
+            }
+        }
+
+        if (chosen_direction != -1) {
+            return Action::Slide(chosen_direction);
+        }
+
+        return Action();
     }
 
 private:
-    float Expectiminimax(Node node, int depth) {
-        if(node.IsTerminal() || depth == 0) {
-            return node.CalculateHeuristicValue();
+    float Expectiminimax(Board board, int depth, int player_move, std::set<Board::cell_t> bag) {
+        if (IsTerminal(board)) {
+            return SCORE_LOST_PENALTY;
         }
 
-        int a;
-        if (node.IsPlayer()) {
-            a = INT32_MIN;
+        if (depth == 0) {
+            return CalculateHeuristicValue(board);
+        }
 
-            for (int i = 0; i < 4; ++i) { //direction
+        float score;
+        if (player_move == -1) {
+            score = INT64_MIN;
 
-                a = max(a, expectiminimax(child, depth-1));
+            for (int d = 0; d < 4; ++d) { //direction
+                Board child = Board(board);
+                child.Slide(d);
+
+                score = fmaxf(score, Expectiminimax(child, depth - 1, d, bag));
             }
-        }
-        else if (!node.IsPlayer()) {
-            a = 0;
-
-            for (int i = 0; i < 4; ++i) { //direction
-                a = a + (Probability[child] * expectiminimax(child, depth-1));
+        } else {
+            score = 0;
+            std::array<unsigned int, 4> positions = getPlacingPosition(player_move);
+            if (bag.empty()) {
+                bag = {1, 2, 3};
             }
+
+            int placing_position = 0;
+            for (int i = 0; i < 4; ++i) {
+                placing_position += (board(positions[i]) == 0);
+            }
+
+            for (int i = 0; i < 4; ++i) {
+                for (Board::cell_t tile : bag) {
+                    if(board(positions[i]) != 0) continue;
+
+                    Board child = Board(board);
+                    child.Place(positions[i], tile);
+
+                    std::set<Board::cell_t> child_bag = bag;
+                    child_bag.erase(tile);
+
+                    score += ((1.0f / placing_position) * (1.0 / bag.size()) * Expectiminimax(child, depth - 1, -1, child_bag));
+                }
+            }
+
         }
 
-        return a;
+        return score;
     }
 
-    std::vector<Board::cell_t > bag_;
+    std::array<unsigned int, 4> getPlacingPosition(int player_move) {
+        if (player_move == 0) {
+            return {12, 13, 14, 15};
+        }
+
+        if (player_move == 1) {
+            return {0, 4, 8, 12};
+        }
+
+        if (player_move == 2) {
+            return {0, 1, 2, 3};
+        }
+
+        return {3, 7, 11, 15};
+    }
+
+    bool IsTerminal(Board &board) {
+        bool is_terminal = true;
+        Board temp_board = Board(board);
+
+        for (int direction = 0; direction < 4; ++direction) {
+            is_terminal &= (Board(temp_board).Slide(direction) == -1);
+        }
+
+        return is_terminal;
+    }
+
+    float CalculateHeuristicValue(Board &board) {
+        int empty = CountEmptyTile(board);
+        int merges = CountMergeableTile(board);
+
+        return SCORE_EMPTY_WEIGHT * empty + SCORE_MERGES_WEIGHT * merges;
+    }
+
+    bool IsMergeable(Board::cell_t tile_a, Board::cell_t tile_b) {
+        return (tile_a == 1 && tile_b == 2) || (tile_a == 2 && tile_b == 1) ||
+               (tile_a == tile_b && tile_a >= 3 && tile_b >= 3);
+    }
+
+    int CountMergeableTile(Board board) {
+        int count = 0;
+        int dx[] = {-1, 0, 1, 0};
+        int dy[] = {0, 1, 0, -1};
+
+        for (int i = 0; i < 4; ++i) {
+            for (int j = 0; j < 4; ++j) {
+                for (int k = 0; k < 4; ++k) {
+                    int x = i + dx[k];
+                    int y = j + dy[k];
+
+                    if (0 <= x && x <= 4 && 0 <= y && y <= 4) {
+                        count += (IsMergeable(board[i][j], board[x][y]));
+                    }
+                }
+            }
+        }
+
+        return count / 2;
+    }
+
+    int CountEmptyTile(Board board) {
+        int count = 0;
+        for (int i = 0; i < 16; ++i) {
+            count += int(board(i) == 0);
+        }
+
+        return count;
+    }
+
+    static constexpr float SCORE_SUM_POWER = 3.5f;
+    static constexpr float SCORE_SUM_WEIGHT = 11.0f;
+    static constexpr float SCORE_MERGES_WEIGHT = 700.0f;
+    static constexpr float SCORE_EMPTY_WEIGHT = 270.0f;
+    static constexpr float SCORE_LOST_PENALTY = -999999999.0f;
+
+    std::set<Board::cell_t> bag_;
 };

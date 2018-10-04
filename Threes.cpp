@@ -60,24 +60,29 @@ int main(int argc, const char *argv[]) {
 //    MaxRewardPlayer player(play_args);
 //    LessTilePlayer player(play_args);
 //    MaxMergePlayer player(play_args);
-    SmartPlayer player(play_args);
+    ExpectimaxPlayer player(play_args);
     RandomEnvironment evil(evil_args);
 
+    int count = 0;
     while (!stat.IsFinished()) {
         player.OpenEpisode("~:" + evil.name());
         evil.OpenEpisode(player.name() + ":~");
 
         stat.OpenEpisode(player.name() + ":" + evil.name());
         episode &game = stat.Back();
-//        int count = 0;
+
+        if (count % 10 == 0) {
+            std::cout << count << std::endl;
+        }
+
         while (true) {
-//            std::cout << count++ << std::endl;
 //            std::cout << game.state() << std::endl;
 
             Agent &agent = game.TakeTurns(player, evil);
             Action move = agent.TakeAction(game.state(), move);
             if (!game.ApplyAction(move)) break;
             if (agent.CheckForWin(game.state())) break;
+//            count++;
         }
 
         Agent &win = game.TakeLastTurns(player, evil);
@@ -85,6 +90,8 @@ int main(int argc, const char *argv[]) {
 
         player.CloseEpisode(win.name());
         evil.CloseEpisode(win.name());
+
+        count++;
     }
 
     if (summary) {
