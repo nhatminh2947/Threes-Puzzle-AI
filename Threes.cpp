@@ -55,15 +55,15 @@ int main(int argc, const char *argv[]) {
         summary |= stat.IsFinished();
     }
 
-//    GreedyPlayer player(play_args);
+    GreedyPlayer player(play_args);
 //    OneDirectionPlayer player(play_args);
 //    MaxRewardPlayer player(play_args);
 //    LessTilePlayer player(play_args);
 //    MaxMergePlayer player(play_args);
-    ExpectimaxPlayer player(play_args);
+//    ExpectimaxPlayer player(play_args);
     RandomEnvironment evil(evil_args);
 
-    int count = 0;
+//    int count = 0;
     while (!stat.IsFinished()) {
         player.OpenEpisode("~:" + evil.name());
         evil.OpenEpisode(player.name() + ":~");
@@ -71,9 +71,9 @@ int main(int argc, const char *argv[]) {
         stat.OpenEpisode(player.name() + ":" + evil.name());
         episode &game = stat.Back();
 
-        if (count % 10 == 0) {
-            std::cout << count << std::endl;
-        }
+//        if (count % 10 == 0) {
+//            std::cout << count << std::endl;
+//        }
 
         while (true) {
 //            std::cout << game.state() << std::endl;
@@ -90,16 +90,13 @@ int main(int argc, const char *argv[]) {
 
         player.CloseEpisode(win.name());
         evil.CloseEpisode(win.name());
-
-        count++;
     }
 
     if (summary) {
         stat.Summary();
     }
 
-    //save file by player name
-    save = "../results/" + player.name() + ".txt";
+//    save = "../results/" + player.name() + ".txt";
 
     if (save.size()) {
         std::ofstream out(save, std::ios::out | std::ios::trunc);

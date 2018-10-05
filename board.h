@@ -20,10 +20,10 @@
 class Board {
 public:
     typedef uint16_t cell_t;
+    typedef int reward_t;
     typedef std::array<cell_t, 4> row_t;
     typedef std::array<row_t, 4> grid_t;
     typedef uint64_t data_t;
-    typedef int reward_t;
 
     Board() : grid_(), data_(0) {}
 
@@ -117,25 +117,25 @@ public:
 
         for (int r = 0; r < 4; r++) {
             auto &row = this->grid_[r];
-            unsigned short col = 0;
-            unsigned short hold = 0;
 
             for (int c = 0; c < 3; c++) {
                 if ((row[c] == 1 && row[c+1] == 2) || (row[c] == 2 && row[c+1] == 1)) {
                     row[c] = 3;
                     row[c+1] = 0;
-
-                    score += 3;
                 }
                 else if (row[c] == row[c+1] && row[c] >= 3 && row[c+1] >= 3) {
                     row[c]++;
                     row[c+1] = 0;
-
-                    score += reward_t(pow(3, row[c] - 2));
                 }
                 else if (row[c] == 0) {
                     row[c] = row[c+1];
                     row[c+1] = 0;
+                }
+            }
+
+            for (int c = 0; c < 4; c++) {
+                if(row[c] >= 3) {
+                    score += reward_t(pow(3, row[c] - 2));
                 }
             }
         }

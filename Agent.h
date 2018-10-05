@@ -169,35 +169,76 @@ public:
 
     Action TakeAction(const Board &board, const Action &evil_action) override {
         int chosen_direction = -1;
-        int max_reward = -1;
-        int min_tile = 17;
+        int max_score = -1;
 
         for (int direction : directions_) {
             Board greedy_board = board;
 
             Board::reward_t reward = greedy_board.Slide(direction);
 
-            if (reward > max_reward) {
-                max_reward = reward;
+            if(reward == -1) continue;
+
+            int merge_tile = CountMergeableTile(greedy_board);
+            int count = CountEmptyTile(greedy_board);
+            int max_tile = MaxTile(greedy_board);
+
+            int score = reward + merge_tile + max_tile * 10;
+
+            if(score > max_score) {
                 chosen_direction = direction;
-            } else if (reward == max_reward) {
-                int count = CountTile(greedy_board);
-                if (count < min_tile) {
-                    min_tile = count;
-                    chosen_direction = direction;
-                }
+                max_score = score;
             }
         }
 
-        if (chosen_direction != -1) return Action::Slide(chosen_direction);
+        if (chosen_direction != -1) {
+            return Action::Slide(chosen_direction);
+        }
+
         return Action();
     }
 
 private:
-    int CountTile(Board board) {
+    int CountEmptyTile(Board board) {
         int count = 0;
         for (int i = 0; i < 16; ++i) {
             count += int(board(i) != 0);
+        }
+
+        return count;
+    }
+
+    int MaxTile(Board board) {
+        int max_tile = 0;
+        for (int i = 0; i < 16; ++i) {
+            if(board(i) > max_tile) {
+                max_tile = board(i);
+            }
+        }
+
+        return int(pow(3, max_tile - 2));
+    }
+
+    bool IsMergeable(Board::cell_t tile_a, Board::cell_t tile_b) {
+        return (tile_a == 1 && tile_b == 2) || (tile_a == 2 && tile_b == 1) ||
+               (tile_a == tile_b && tile_a >= 3 && tile_b >= 3);
+    }
+
+    int CountMergeableTile(Board board) {
+        int count = 0;
+        int dx[] = {-1, 0, 1, 0};
+        int dy[] = {0, 1, 0, -1};
+
+        for (int i = 0; i < 4; ++i) {
+            for (int j = 0; j < 4; ++j) {
+                for (int k = 0; k < 4; ++k) {
+                    int x = i + dx[k];
+                    int y = j + dy[k];
+
+                    if (0 <= x && x <= 4 && 0 <= y && y <= 4) {
+                        count += (IsMergeable(board[i][j], board[x][y]));
+                    }
+                }
+            }
         }
 
         return count;
@@ -616,14 +657,14 @@ private:
     }
 
     bool IsTerminal(Board &board) {
-        bool is_terminal = true;
         Board temp_board = Board(board);
 
         for (int direction = 0; direction < 4; ++direction) {
-            is_terminal &= (Board(temp_board).Slide(direction) == -1);
+            if(Board(temp_board).Slide(direction) != -1)
+                return false;
         }
 
-        return is_terminal;
+        return true;
     }
 
     float CalculateHeuristicValue(Board &board) {
