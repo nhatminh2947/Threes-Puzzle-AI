@@ -180,10 +180,11 @@ public:
             reward_t score = greedy_board.Slide(direction);
 
             if (greedy_board == board) continue;
+            float heuristic_score = greedy_board.GetHeuristicScore() + greedy_board.GetMaxTile() * 10;
 
-            if (score > max_score) {
+            if (heuristic_score > max_score) {
                 chosen_direction = direction;
-                max_score = score;
+                max_score = heuristic_score;
             }
         }
 
@@ -211,10 +212,10 @@ public:
         for (int direction : directions_) {
             Board64 temp_board = board;
 
-            reward_t reward = temp_board.Slide(direction);
-            if (reward == -1) continue;
+            temp_board.Slide(direction);
+            if (temp_board == board) continue;
 
-            float score = Expectiminimax(temp_board, 3, false, bag_);
+            float score = Expectimax(temp_board, 3, direction, bag_);
 
             if (score > max_score) {
                 max_score = score;
@@ -230,13 +231,13 @@ public:
     }
 
 private:
-    float Expectiminimax(Board64 board, int depth, int player_move, std::set<cell_t> bag) {
+    float Expectimax(Board64 board, int depth, int player_move, std::set<cell_t> bag) {
         if (IsTerminal(board)) {
-            return SCORE_LOST_PENALTY;
+            return -SCORE_LOST_PENALTY * 1000;
         }
 
         if (depth == 0) {
-            return CalculateHeuristicValue(board);
+            return board.GetHeuristicScore();
         }
 
         float score;
@@ -246,11 +247,12 @@ private:
             for (int d = 0; d < 4; ++d) { //direction
                 Board64 child = Board64(board);
                 child.Slide(d);
+                if(child == board) continue;
 
-                score = fmaxf(score, Expectiminimax(child, depth - 1, d, bag));
+                score = fmaxf(score, Expectimax(child, depth - 1, d, bag));
             }
         } else {
-            score = 0;
+            score = 0.0f;
             std::array<unsigned int, 4> positions = getPlacingPosition(player_move);
             if (bag.empty()) {
                 bag = {1, 2, 3};
@@ -271,8 +273,8 @@ private:
                     std::set<cell_t> child_bag = bag;
                     child_bag.erase(tile);
 
-                    score += ((1.0f / placing_position) * (1.0 / bag.size()) *
-                              Expectiminimax(child, depth - 1, -1, child_bag));
+                    score += ((1.0f / placing_position) * (1.0f / bag.size()) *
+                            Expectimax(child, depth - 1, -1, child_bag));
                 }
             }
 
@@ -298,30 +300,15 @@ private:
     }
 
     bool IsTerminal(Board64 &board) {
-        Board64 temp_board = Board64(board);
-
         for (int direction = 0; direction < 4; ++direction) {
-            if (Board64(temp_board).Slide(direction) != -1)
+            Board64 temp_board = Board64(board);
+            temp_board.Slide(direction);
+            if (temp_board != board)
                 return false;
         }
 
         return true;
     }
-
-    float CalculateHeuristicValue(Board64 &board) {
-//        int empty = CountEmptyTile(board);
-//        int merges = CountMergeableTile(board);
-//
-//        return SCORE_EMPTY_WEIGHT * empty + SCORE_MERGES_WEIGHT * merges;
-        return 0;
-    }
-
-
-    static constexpr float SCORE_SUM_POWER = 3.5f;
-    static constexpr float SCORE_SUM_WEIGHT = 11.0f;
-    static constexpr float SCORE_MERGES_WEIGHT = 700.0f;
-    static constexpr float SCORE_EMPTY_WEIGHT = 270.0f;
-    static constexpr float SCORE_LOST_PENALTY = -999999999.0f;
 
     std::set<cell_t> bag_;
 };

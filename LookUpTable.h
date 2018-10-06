@@ -2,6 +2,9 @@
 // Created by nhatminh2947 on 10/6/18.
 //
 
+
+#pragma once
+
 #include <ctype.h>
 #include <cmath>
 #include <cstdio>
@@ -9,13 +12,11 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
-
-#pragma once
-
 #include <algorithm>
 
 #include "Board64.h"
 
+static cell_t row_max_table[65536];
 static row_t row_left_table[65536];
 static row_t row_right_table[65536];
 static board_t col_up_table[65536];
@@ -24,13 +25,14 @@ static float heur_score_table[65536];
 static float score_table[65536];
 
 // Heuristic scoring settings
-static const float SCORE_LOST_PENALTY = 200000.0f;
-static const float SCORE_MONOTONICITY_POWER = 4.0f;
-static const float SCORE_MONOTONICITY_WEIGHT = 47.0f;
-static const float SCORE_SUM_POWER = 3.5f;
-static const float SCORE_SUM_WEIGHT = 11.0f;
-static const float SCORE_MERGES_WEIGHT = 700.0f;
-static const float SCORE_EMPTY_WEIGHT = 270.0f;
+static float SCORE_LOST_PENALTY = 200000.0f;
+static float SCORE_MONOTONICITY_POWER = 4.0f;
+static float SCORE_MONOTONICITY_WEIGHT = 47.0f;
+static float SCORE_SUM_POWER = 3.5f;
+static float SCORE_SUM_WEIGHT = 11.0f;
+static float SCORE_MERGES_WEIGHT = 700.0f;
+static float SCORE_12_MERGES_WEIGHT = 0.0f;
+static float SCORE_EMPTY_WEIGHT = 270.0f;
 
 static board_t unpack_col(row_t row) {
     board_t tmp = row;
@@ -42,15 +44,15 @@ static row_t reverse_row(row_t row) {
 }
 
 void InitLookUpTables() {
-    for (unsigned row = 0; row < 65536; ++row) {
+    for(unsigned row = 0; row < 65536; ++row) {
         unsigned line[4] = {
-                (row >> 0) & 0xf,
-                (row >> 4) & 0xf,
-                (row >> 8) & 0xf,
+                (row >>  0) & 0xf,
+                (row >>  4) & 0xf,
+                (row >>  8) & 0xf,
                 (row >> 12) & 0xf
         };
 
-
+        // Score
         float score = 0.0f;
         for (int i = 0; i < 4; ++i) {
             int rank = line[i];
@@ -59,12 +61,14 @@ void InitLookUpTables() {
             }
         }
         score_table[row] = score;
+        row_max_table[row] = std::max(std::max(line[0], line[1]), std::max(line[2], line[3]));
 
 
         // Heuristic score
         float sum = 0;
         int empty = 0;
         int merges = 0;
+        int onetwo_merges = 0;
 
         int prev = 0;
         int counter = 0;
@@ -86,56 +90,69 @@ void InitLookUpTables() {
         if (counter > 0) {
             merges += 1 + counter;
         }
+        for (int i = 1; i < 4; ++i) {
+            if ((line[i-1] == 1 && line[i] == 2) || (line[i-1] == 2 && line[i] == 1)) {
+                onetwo_merges++;
+            }
+        }
 
         float monotonicity_left = 0;
         float monotonicity_right = 0;
         for (int i = 1; i < 4; ++i) {
-            if (line[i - 1] > line[i]) {
-                monotonicity_left +=
-                        pow(line[i - 1], SCORE_MONOTONICITY_POWER) - pow(line[i], SCORE_MONOTONICITY_POWER);
+            if (line[i-1] > line[i]) {
+                monotonicity_left += pow(line[i-1], SCORE_MONOTONICITY_POWER) - pow(line[i], SCORE_MONOTONICITY_POWER);
             } else {
-                monotonicity_right +=
-                        pow(line[i], SCORE_MONOTONICITY_POWER) - pow(line[i - 1], SCORE_MONOTONICITY_POWER);
+                monotonicity_right += pow(line[i], SCORE_MONOTONICITY_POWER) - pow(line[i-1], SCORE_MONOTONICITY_POWER);
             }
         }
 
-        heur_score_table[row] = SCORE_LOST_PENALTY +
-                                SCORE_EMPTY_WEIGHT * empty +
-                                SCORE_MERGES_WEIGHT * merges -
-                                SCORE_MONOTONICITY_WEIGHT * std::min(monotonicity_left, monotonicity_right) -
-                                SCORE_SUM_WEIGHT * sum;
+        heur_score_table[row] = SCORE_LOST_PENALTY
+                                + SCORE_EMPTY_WEIGHT * empty
+                                + SCORE_MERGES_WEIGHT * merges
+                                + SCORE_12_MERGES_WEIGHT * onetwo_merges
+                                - SCORE_MONOTONICITY_WEIGHT * std::min(monotonicity_left, monotonicity_right)
+                                - SCORE_SUM_WEIGHT * sum;
 
         // execute a move to the left
-        for (int c = 0; c < 3; c++) {
-            if ((line[c] == 1 && line[c + 1] == 2) || (line[c] == 2 && line[c + 1] == 1)) {
-                line[c] = 3;
-                line[c + 1] = 0;
-            } else if (line[c] == line[c + 1] && line[c] >= 3 && line[c + 1] >= 3) {
-                line[c]++;
-                line[c + 1] = 0;
-            } else if (line[c] == 0) {
-                line[c] = line[c + 1];
-                line[c + 1] = 0;
+        int i;
+
+        for(i=0; i<3; i++) {
+            if(line[i] == 0) {
+                line[i] = line[i+1];
+                break;
+            } else if(line[i] == 1 && line[i+1] == 2) {
+                line[i] = 3;
+                break;
+            } else if(line[i] == 2 && line[i+1] == 1) {
+                line[i] = 3;
+                break;
+            } else if(line[i] == line[i+1] && line[i] >= 3) {
+                if(line[i] != 15) {
+                    /* Pretend that 12288 + 12288 = 12288 */
+                    line[i]++;
+                }
+                break;
             }
         }
 
-        row_t result = (line[0] << 0) |
-                       (line[1] << 4) |
-                       (line[2] << 8) |
+        if(i == 3)
+            continue;
+
+        /* fold to the left */
+        for(int j=i+1; j<3; j++)
+            line[j] = line[j+1];
+        line[3] = 0;
+
+        row_t result = (line[0] <<  0) |
+                       (line[1] <<  4) |
+                       (line[2] <<  8) |
                        (line[3] << 12);
         row_t rev_result = reverse_row(result);
         unsigned rev_row = reverse_row(row);
 
-        row_left_table[row] = row ^ result;
-        row_right_table[rev_row] = rev_row ^ rev_result;
-        col_up_table[row] = unpack_col(row) ^ unpack_col(result);
-        col_down_table[rev_row] = unpack_col(rev_row) ^ unpack_col(rev_result);
+        row_left_table [    row] =                row  ^                result;
+        row_right_table[rev_row] =            rev_row  ^            rev_result;
+        col_up_table   [    row] = unpack_col(    row) ^ unpack_col(    result);
+        col_down_table [rev_row] = unpack_col(rev_row) ^ unpack_col(rev_result);
     }
-}
-
-reward_t GetScore(board_t board) {
-    return score_table[(board >> 0) & ROW_MASK] +
-           score_table[(board >> 16) & ROW_MASK] +
-           score_table[(board >> 32) & ROW_MASK] +
-           score_table[(board >> 48) & ROW_MASK];
 }

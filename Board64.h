@@ -108,7 +108,7 @@ public:
         board_t cell = row << (col_id * 4);
         board_ = board_ | cell;
 
-        return GetScore(board_);
+        return GetBoardScore(board_);
     }
 
     /**
@@ -140,7 +140,7 @@ public:
 
         this->board_ = ret;
 
-        return GetScore(ret);
+        return GetBoardScore(ret);
     }
 
     reward_t SlideRight() {
@@ -153,7 +153,7 @@ public:
 
         this->board_ = ret;
 
-        return GetScore(ret);
+        return GetBoardScore(ret);
     }
 
     reward_t SlideUp() {
@@ -166,7 +166,7 @@ public:
         ret ^= col_up_table[(transpose_board >> 48) & ROW_MASK] << 12;
         this->board_ = ret;
 
-        return GetScore(ret);
+        return GetBoardScore(ret);
     }
 
     reward_t SlideDown() {
@@ -179,7 +179,7 @@ public:
         ret ^= col_down_table[(transpose_board >> 48) & ROW_MASK] << 12;
         this->board_ = ret;
 
-        return GetScore(ret);
+        return GetBoardScore(ret);
     }
 
     board_t Transpose(board_t board) {
@@ -193,6 +193,29 @@ public:
         return b1 | (b2 >> 24) | (b3 << 24);
     }
 
+    float GetHeuristicScore() {
+        return ScoreHelper(board_, heur_score_table) +
+               ScoreHelper(Transpose(board_), heur_score_table);
+    }
+
+    float GetBoardScore(board_t board) {
+        return ScoreHelper(board, score_table);
+    }
+
+    cell_t GetMaxTile() {
+        return std::max(row_max_table[(board_ >> 0) & ROW_MASK],
+                        std::max(row_max_table[(board_ >> 16) & ROW_MASK],
+                                 std::max(row_max_table[(board_ >> 32) & ROW_MASK],
+                                          row_max_table[(board_ >> 48) & ROW_MASK])));
+    }
+
 private:
     board_t board_;
+
+    float ScoreHelper(board_t board, const float *table) {
+        return table[(board >> 0) & ROW_MASK] +
+               table[(board >> 16) & ROW_MASK] +
+               table[(board >> 32) & ROW_MASK] +
+               table[(board >> 48) & ROW_MASK];
+    }
 };

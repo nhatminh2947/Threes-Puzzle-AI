@@ -42,7 +42,11 @@ int main(int argc, const char *argv[]) {
         } else if (para.find("--load=") == 0) {
             load = para.substr(para.find("=") + 1);
         } else if (para.find("--save=") == 0) {
-            save = para.substr(para.find("=") + 1);
+            std::string s = para.substr(para.find("=") + 1);
+            if(s == "epoch") {
+                save = "../results/" + std::to_string(std::time(nullptr));
+            }
+            else save = s;
         } else if (para.find("--summary") == 0) {
             summary = true;
         }
@@ -57,8 +61,8 @@ int main(int argc, const char *argv[]) {
         summary |= stat.IsFinished();
     }
 
-    GreedyPlayer player(play_args);
-//    ExpectimaxPlayer player(play_args);
+//    GreedyPlayer player(play_args);
+    ExpectimaxPlayer player(play_args);
     RandomEnvironment evil(evil_args);
 
 //    int count = 0;
@@ -95,8 +99,6 @@ int main(int argc, const char *argv[]) {
     if (summary) {
         stat.Summary();
     }
-
-    save = "../results/" + player.name() + ".txt";
 
     if (save.size()) {
         std::ofstream out(save, std::ios::out | std::ios::trunc);

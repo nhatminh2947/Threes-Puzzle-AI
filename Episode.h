@@ -39,7 +39,7 @@ public:
         reward_t reward = move.Apply(state());
         if (reward == -1) return false;
         ep_moves.emplace_back(move, reward, millisec() - ep_time);
-        ep_score += reward;
+        ep_score = reward;
         return true;
     }
 
