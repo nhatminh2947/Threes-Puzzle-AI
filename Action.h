@@ -4,7 +4,7 @@
 #include <unordered_map>
 #include <string>
 
-#include "board.h"
+#include "Board64.h"
 
 class Action {
 public:
@@ -17,7 +17,7 @@ public:
     class Slide; // create a sliding action with Board directions
     class Place; // create a placing action with position and grid_
 
-    virtual Board::reward_t Apply(Board &board) const {
+    virtual reward_t Apply(Board64 &board) const {
         auto proto = entries().find(type());
         if (proto != entries().end())
             return proto->second->reinterpret(this).Apply(board);
@@ -75,7 +75,7 @@ public:
 
     Slide(const Action &a = {}) : Action(a) {}
 
-    Board::reward_t Apply(Board &b) const {
+    reward_t Apply(Board64 &b) const {
         return b.Slide(event());
     }
 
@@ -117,7 +117,7 @@ public:
     unsigned tile() const { return event() >> 4; }
 
 public:
-    Board::reward_t Apply(Board &b) const {
+    reward_t Apply(Board64 &b) const {
         return b.Place(position(), tile());
     }
 

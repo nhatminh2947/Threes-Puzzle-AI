@@ -3,13 +3,15 @@
 #include <iterator>
 #include <string>
 
-#include "board.h"
+#include "Board64.h"
 #include "Action.h"
 #include "Agent.h"
-#include "episode.h"
-#include "statistic.h"
+#include "Episode.h"
+#include "Statistic.h"
 
 int main(int argc, const char *argv[]) {
+    InitLookUpTables();
+
     std::cout << "Threes-Demo: ";
     std::copy(argv, argv + argc, std::ostream_iterator<const char *>(std::cout, " "));
     std::cout << std::endl << std::endl;
@@ -56,10 +58,6 @@ int main(int argc, const char *argv[]) {
     }
 
     GreedyPlayer player(play_args);
-//    OneDirectionPlayer player(play_args);
-//    MaxRewardPlayer player(play_args);
-//    LessTilePlayer player(play_args);
-//    MaxMergePlayer player(play_args);
 //    ExpectimaxPlayer player(play_args);
     RandomEnvironment evil(evil_args);
 
@@ -69,13 +67,15 @@ int main(int argc, const char *argv[]) {
         evil.OpenEpisode(player.name() + ":~");
 
         stat.OpenEpisode(player.name() + ":" + evil.name());
-        episode &game = stat.Back();
+        Episode &game = stat.Back();
 
 //        if (count % 10 == 0) {
 //            std::cout << count << std::endl;
 //        }
+        int count = 0;
 
         while (true) {
+//            std::cout << count << std::endl;
 //            std::cout << game.state() << std::endl;
 
             Agent &agent = game.TakeTurns(player, evil);
@@ -96,7 +96,7 @@ int main(int argc, const char *argv[]) {
         stat.Summary();
     }
 
-//    save = "../results/" + player.name() + ".txt";
+    save = "../results/" + player.name() + ".txt";
 
     if (save.size()) {
         std::ofstream out(save, std::ios::out | std::ios::trunc);

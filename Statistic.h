@@ -4,10 +4,10 @@
 #include <iostream>
 #include <sstream>
 
-#include "board.h"
+#include "Board64.h"
 #include "Action.h"
 #include "Agent.h"
-#include "episode.h"
+#include "Episode.h"
 
 class Statistic {
 public:
@@ -52,13 +52,14 @@ public:
 		size_t stat[64] = { 0 };
 		size_t sop = 0, pop = 0, eop = 0;
 		time_t sdu = 0, pdu = 0, edu = 0;
-		Board::reward_t sum = 0, max = 0;
+		reward_t sum = 0;
+		reward_t max = 0;
 		auto it = data_.end();
 		for (size_t i = 0; i < blk; i++) {
 			auto& ep = *(--it);
 			sum += ep.score();
 			max = std::max(ep.score(), max);
-			stat[*std::max_element(&(ep.state()(0)), &(ep.state()(16)))]++;
+//			stat[*std::max_element(&(ep.state()(0)), &(ep.state()(16)))]++;
 			sop += ep.step();
 			pop += ep.step(Action::Slide::type_);
 			eop += ep.step(Action::Place::type);
@@ -80,14 +81,14 @@ public:
 		std::cout.copyfmt(ff);
 
 		if (!tstat) return;
-		for (size_t t = 0, c = 0; c < blk; c += stat[t++]) {
-			if (stat[t] == 0) continue;
-			unsigned accu = std::accumulate(std::begin(stat) + t, std::end(stat), 0);
-			std::cout << "\t" << ((1 << (t-3)) * 3); // type
-			std::cout << "\t" << (accu * 100.0 / blk) << "%"; // win rate
-			std::cout << "\t" "(" << (stat[t] * 100.0 / blk) << "%" ")"; // percentage of ending
-			std::cout << std::endl;
-		}
+//		for (size_t t = 0, c = 0; c < blk; c += stat[t++]) {
+//			if (stat[t] == 0) continue;
+//			unsigned accu = std::accumulate(std::begin(stat) + t, std::end(stat), 0);
+//			std::cout << "\t" << ((1 << (t-3)) * 3); // type
+//			std::cout << "\t" << (accu * 100.0 / blk) << "%"; // win rate
+//			std::cout << "\t" "(" << (stat[t] * 100.0 / blk) << "%" ")"; // percentage of ending
+//			std::cout << std::endl;
+//		}
 		std::cout << std::endl;
 	}
 
@@ -113,20 +114,20 @@ public:
 		if (count_ % block_ == 0) Show();
 	}
 
-	episode& At(size_t i) {
+	Episode& At(size_t i) {
 		auto it = data_.begin();
 		while (i--) it++;
 		return *it;
 	}
-	episode& Front() {
+	Episode& Front() {
 		return data_.front();
 	}
-	episode& Back() {
+	Episode& Back() {
 		return data_.back();
 	}
 
 	friend std::ostream& operator <<(std::ostream& out, const Statistic& stat) {
-		for (const episode& rec : stat.data_) out << rec << std::endl;
+		for (const Episode& rec : stat.data_) out << rec << std::endl;
 		return out;
 	}
 	friend std::istream& operator >>(std::istream& in, Statistic& stat) {
@@ -144,5 +145,5 @@ private:
 	size_t block_;
 	size_t limit_;
 	size_t count_;
-	std::list<episode> data_;
+	std::list<Episode> data_;
 };

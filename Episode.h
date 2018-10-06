@@ -8,24 +8,24 @@
 #include <chrono>
 #include <numeric>
 
-#include "board.h"
+#include "Board64.h"
 #include "Action.h"
 #include "Agent.h"
 
 class Statistic;
 
-class episode {
+class Episode {
     friend class statistic;
 
 public:
-    episode() : ep_state(InitialState()), ep_score(0), ep_time(0) { ep_moves.reserve(10000); }
+    Episode() : ep_state(InitialState()), ep_score(0), ep_time(0) { ep_moves.reserve(10000); }
 
 public:
-    Board &state() { return ep_state; }
+    Board64 &state() { return ep_state; }
 
-    const Board &state() const { return ep_state; }
+    const Board64 &state() const { return ep_state; }
 
-    Board::reward_t score() const { return ep_score; }
+    reward_t score() const { return ep_score; }
 
     void OpenEpisode(const std::string &tag) {
         ep_open = {tag, millisec()};
@@ -36,7 +36,7 @@ public:
     }
 
     bool ApplyAction(Action move) {
-        Board::reward_t reward = move.Apply(state());
+        reward_t reward = move.Apply(state());
         if (reward == -1) return false;
         ep_moves.emplace_back(move, reward, millisec() - ep_time);
         ep_score += reward;
@@ -101,14 +101,14 @@ public:
 
 public:
 
-    friend std::ostream &operator<<(std::ostream &out, const episode &ep) {
+    friend std::ostream &operator<<(std::ostream &out, const Episode &ep) {
         out << ep.ep_open << '|';
         for (const Move &mv : ep.ep_moves) out << mv;
         out << '|' << ep.ep_close;
         return out;
     }
 
-    friend std::istream &operator>>(std::istream &in, episode &ep) {
+    friend std::istream &operator>>(std::istream &in, Episode &ep) {
         ep = {};
         std::string token;
         std::getline(in, token, '|');
@@ -128,10 +128,10 @@ protected:
 
     struct Move {
         Action code;
-        Board::reward_t reward;
+        reward_t reward;
         time_t time;
 
-        Move(Action code = {}, Board::reward_t reward = 0, time_t time = 0) : code(code), reward(reward), time(time) {}
+        Move(Action code = {}, reward_t reward = 0, time_t time = 0) : code(code), reward(reward), time(time) {}
 
         operator Action() const { return code; }
 
@@ -175,7 +175,7 @@ protected:
         }
     };
 
-    static Board InitialState() {
+    static Board64 InitialState() {
         return {};
     }
 
@@ -185,8 +185,8 @@ protected:
     }
 
 private:
-    Board ep_state;
-    Board::reward_t ep_score;
+    Board64 ep_state;
+    reward_t ep_score;
     std::vector<Move> ep_moves;
     time_t ep_time;
 
