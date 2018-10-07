@@ -200,18 +200,23 @@ class ExpectimaxPlayer : public Player {
 public:
     ExpectimaxPlayer(const std::string &args = "", int depth = 2, int bag = 0x7) : Player(
             "name=Expectimax role=Player " + args),
-                                                                                 depth_(depth),
-                                                                                 bag_(bag) {}
+                                                                                   depth_(depth),
+                                                                                   bag_(bag) {}
 
     Action TakeAction(const Board64 &board, const Action &evil_action) override {
         float max_score = INT64_MIN;
         int chosen_direction = -1;
         int tile = Action::Place(evil_action).tile();
-        bag_ = bag_ ^ (1 << (tile - 1));
 
-        if (bag_ == 0) {
-            bag_ = 0x7;
+        if(ok) {
+            bag_ = bag_ ^ (1 << (tile - 1));
+
+            if (bag_ == 0) {
+                bag_ = 0x7;
+            }
         }
+
+        ok = true;
 
         for (int direction : directions_) {
             Board64 temp_board = board;
@@ -237,7 +242,7 @@ public:
 private:
     float Expectimax(Board64 board, int depth, int player_move, int bag) {
         if (IsTerminal(board)) {
-            return -SCORE_LOST_PENALTY * 1000;
+            return INT32_MIN;
         }
 
         if (depth == 0) {
@@ -279,17 +284,15 @@ private:
                 if (board(positions[i]) != 0) continue;
 
                 for (int tile = 1; tile <= 3; ++tile) {
-                    if (((1 << (tile - 1)) & bag) == 0) {
-                        continue;
+                    if (((1 << (tile - 1)) & bag) != 0) {
+                        Board64 child = Board64(board);
+                        child.Place(positions[i], tile);
+
+                        int child_bag = bag ^(1 << (tile - 1));
+
+                        score += ((1.0f / placing_position) * (1.0f / bag_size)) *
+                                 Expectimax(child, depth - 1, -1, child_bag);
                     }
-
-                    Board64 child = Board64(board);
-                    child.Place(positions[i], tile);
-
-                    int child_bag = bag ^(1 << (tile - 1));
-
-                    score += ((1.0f / placing_position) * (1.0f / bag_size) *
-                              Expectimax(child, depth - 1, -1, child_bag));
                 }
             }
 
@@ -327,4 +330,5 @@ private:
 
     int bag_;
     int depth_;
+    bool ok = false;
 };
