@@ -8,7 +8,8 @@
 #include <algorithm>
 #include <set>
 
-#include "board.h"
+#include "Common.h"
+#include "Board64.h"
 #include "Action.h"
 
 class Agent {
@@ -28,9 +29,9 @@ public:
 
     virtual void CloseEpisode(const std::string &flag = "") {}
 
-    virtual Action TakeAction(const Board &b, const Action &prev_action) { return Action(); }
+    virtual Action TakeAction(const Board64 &b, const Action &prev_action) { return Action(); }
 
-    virtual bool CheckForWin(const Board &b) { return false; }
+    virtual bool CheckForWin(const Board64 &b) { return false; }
 
 public:
     virtual std::string property(const std::string &key) const { return meta_.at(key); }
@@ -92,7 +93,7 @@ public:
                                                               {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}),
                                                       popup_(1, 3) {}
 
-    Action TakeAction(const Board &board, const Action &player_action) override {
+    Action TakeAction(const Board64 &board, const Action &player_action) override {
         switch (player_action.event()) {
             case 0:
                 positions_ = {12, 13, 14, 15};
@@ -118,9 +119,11 @@ public:
         std::shuffle(positions_.begin(), positions_.end(), engine_);
         std::shuffle(bag_.begin(), bag_.end(), engine_);
 
-        for (unsigned int position : positions_) {
-            if (board(position) != 0) continue;
-            Board::cell_t tile = bag_.back();
+        for (int position : positions_) {
+            board_t value = board.operator()(position);
+            if (value != 0) continue;
+
+            cell_t tile = bag_.back();
             bag_.pop_back();
             return Action::Place(position, tile);
         }
@@ -134,7 +137,7 @@ public:
     };
 
 private:
-    std::vector<Board::cell_t> bag_ = {1, 2, 3};
+    std::vector<cell_t> bag_ = {1, 2, 3};
     std::vector<unsigned int> positions_;
     std::uniform_int_distribution<int> popup_;
 };
@@ -150,10 +153,10 @@ public:
     RandomPlayer(const std::string &args = "") : RandomAgent("name=dummy role=Player " + args),
                                                  directions_({0, 1, 2, 3}) {}
 
-    Action TakeAction(const Board &board, const Action &evil_action) override {
+    Action TakeAction(const Board64 &board, const Action &evil_action) override {
         std::shuffle(directions_.begin(), directions_.end(), engine_);
         for (int direction : directions_) {
-            Board::reward_t reward = Board(board).Slide(direction);
+            reward_t reward = Board64(board).Slide(direction);
             if (reward != -1) return Action::Slide(direction);
         }
         return Action();
@@ -165,28 +168,23 @@ private:
 
 class GreedyPlayer : public Player {
 public:
-    GreedyPlayer(const std::string &args = "") : Player("name=greedy role=Player " + args) {}
+    explicit GreedyPlayer(const std::string &args = "") : Player("name=greedy role=Player " + args) {}
 
-    Action TakeAction(const Board &board, const Action &evil_action) override {
+    Action TakeAction(const Board64 &board, const Action &evil_action) override {
         int chosen_direction = -1;
-        int max_score = -1;
+        float max_score = INT64_MIN;
 
         for (int direction : directions_) {
-            Board greedy_board = board;
+            Board64 greedy_board = board;
 
-            Board::reward_t reward = greedy_board.Slide(direction);
+            reward_t score = greedy_board.Slide(direction);
 
-            if(reward == -1) continue;
+            if (greedy_board == board) continue;
+            float heuristic_score = greedy_board.GetHeuristicScore() + greedy_board.GetMaxTile() * 10;
 
-            int merge_tile = CountMergeableTile(greedy_board);
-            int count = CountEmptyTile(greedy_board);
-            int max_tile = MaxTile(greedy_board);
-
-            int score = reward + merge_tile + max_tile * 10;
-
-            if(score > max_score) {
+            if (heuristic_score > max_score) {
                 chosen_direction = direction;
-                max_score = score;
+                max_score = heuristic_score;
             }
         }
 
@@ -195,386 +193,38 @@ public:
         }
 
         return Action();
-    }
-
-private:
-    int CountEmptyTile(Board board) {
-        int count = 0;
-        for (int i = 0; i < 16; ++i) {
-            count += int(board(i) != 0);
-        }
-
-        return count;
-    }
-
-    int MaxTile(Board board) {
-        int max_tile = 0;
-        for (int i = 0; i < 16; ++i) {
-            if(board(i) > max_tile) {
-                max_tile = board(i);
-            }
-        }
-
-        return int(pow(3, max_tile - 2));
-    }
-
-    bool IsMergeable(Board::cell_t tile_a, Board::cell_t tile_b) {
-        return (tile_a == 1 && tile_b == 2) || (tile_a == 2 && tile_b == 1) ||
-               (tile_a == tile_b && tile_a >= 3 && tile_b >= 3);
-    }
-
-    int CountMergeableTile(Board board) {
-        int count = 0;
-        int dx[] = {-1, 0, 1, 0};
-        int dy[] = {0, 1, 0, -1};
-
-        for (int i = 0; i < 4; ++i) {
-            for (int j = 0; j < 4; ++j) {
-                for (int k = 0; k < 4; ++k) {
-                    int x = i + dx[k];
-                    int y = j + dy[k];
-
-                    if (0 <= x && x <= 4 && 0 <= y && y <= 4) {
-                        count += (IsMergeable(board[i][j], board[x][y]));
-                    }
-                }
-            }
-        }
-
-        return count;
-    }
-};
-
-class MaxRewardPlayer : public Player {
-public:
-    MaxRewardPlayer(const std::string &args = "") : Player("name=MaxReward role=Player " + args) {}
-
-    Action TakeAction(const Board &board, const Action &evil_action) override {
-        int chosen_direction = -1;
-        int max_reward = -1;
-
-        for (int direction : directions_) {
-            Board greedy_board = board;
-
-            Board::reward_t reward = Board(greedy_board).Slide(direction);
-
-            if (reward > max_reward) {
-                max_reward = reward;
-                chosen_direction = direction;
-            }
-        }
-
-        if (chosen_direction != -1) {
-            return Action::Slide(chosen_direction);
-        }
-        return Action();
-    }
-};
-
-class OneDirectionPlayer : public Player {
-public:
-    OneDirectionPlayer(const std::string &args = "") : Player("name=OneDirection role=Player " + args) {}
-
-    Action TakeAction(const Board &board, const Action &evil_action) override {
-        for (int direction : directions_) {
-            Board::reward_t reward = Board(board).Slide(direction);
-            if (reward != -1) return Action::Slide(direction);
-        }
-        return Action();
-    }
-};
-
-class LessTilePlayer : public Player {
-public:
-    LessTilePlayer(const std::string &args = "") : Player("name=LessTile role=Player " + args) {}
-
-    Action TakeAction(const Board &board, const Action &evil_action) override {
-        int min_tile = 17;
-        int chosen_direction = -1;
-
-        for (int direction : directions_) {
-            Board temp_board = board;
-
-            Board::reward_t reward = temp_board.Slide(direction);
-
-            if (reward != -1) {
-                int count = CountTile(temp_board);
-                if (count < min_tile) {
-                    min_tile = count;
-                    chosen_direction = direction;
-                }
-            }
-        }
-
-        if (chosen_direction != -1) {
-            return Action::Slide(chosen_direction);
-        }
-
-        return Action();
-    }
-
-private:
-    int CountTile(Board board) {
-        int count = 0;
-        for (int i = 0; i < 16; ++i) {
-            count += int(board(i) != 0);
-        }
-
-        return count;
-    }
-};
-
-class MaxMergePlayer : public Player {
-public:
-    MaxMergePlayer(const std::string &args = "") : Player("name=MaxMerge role=Player " + args) {}
-
-    Action TakeAction(const Board &board, const Action &evil_action) override {
-        int max_mergable_tile = -1;
-        int chosen_direction = -1;
-
-        for (int direction : directions_) {
-            Board temp_board = board;
-
-            Board::reward_t reward = temp_board.Slide(direction);
-
-            if (reward != -1) {
-                int count = CountMergeableTile(board);
-                if (count > max_mergable_tile) {
-                    max_mergable_tile = count;
-                    chosen_direction = direction;
-                }
-            }
-        }
-
-        if (chosen_direction != -1) {
-            return Action::Slide(chosen_direction);
-        }
-
-        return Action();
-    }
-
-private:
-    bool IsMergeable(Board::cell_t tile_a, Board::cell_t tile_b) {
-        return (tile_a == 1 && tile_b == 2) || (tile_a == 2 && tile_b == 1) ||
-               (tile_a == tile_b && tile_a >= 3 && tile_b >= 3);
-    }
-
-    int CountMergeableTile(Board board) {
-        int count = 0;
-        int dx[] = {-1, 0, 1, 0};
-        int dy[] = {0, 1, 0, -1};
-
-        for (int i = 0; i < 4; ++i) {
-            for (int j = 0; j < 4; ++j) {
-                for (int k = 0; k < 4; ++k) {
-                    int x = i + dx[k];
-                    int y = j + dy[k];
-
-                    if (0 <= x && x <= 4 && 0 <= y && y <= 4) {
-                        count += (IsMergeable(board[i][j], board[x][y]));
-                    }
-                }
-            }
-        }
-
-        return count;
-    }
-};
-
-class SmartPlayer : public Player {
-public:
-    SmartPlayer(const std::string &args = "") : Player("name=smart role=Player " + args) {}
-
-private:
-//    static constexpr float SCORE_SUM_POWER = 3.5f;
-//    static constexpr float SCORE_SUM_WEIGHT = 11.0f;
-    static constexpr float SCORE_MERGES_WEIGHT = 700.0f;
-    static constexpr float SCORE_EMPTY_WEIGHT = 270.0f;
-    static constexpr float SCORE_LOST_PENALTY = -999999999.0f;
-
-    Action TakeAction(const Board &board, const Action &evil_action) override {
-        float max_heuristic_score = -1.0f;
-        int chosen_direction = -1;
-
-        for (int direction : directions_) {
-            Board temp_board = board;
-
-            Board::reward_t reward = temp_board.Slide(direction);
-
-            float heuristic_score =
-                    CalculateHeuristicEvaluation(board) + reward * 11.0f + (reward == -1) * SCORE_LOST_PENALTY;
-            if (heuristic_score > max_heuristic_score) {
-                max_heuristic_score = heuristic_score;
-                chosen_direction = direction;
-            }
-        }
-
-        if (chosen_direction != -1) {
-            return Action::Slide(chosen_direction);
-        }
-
-        return Action();
-    }
-
-    bool IsMergeable(Board::cell_t tile_a, Board::cell_t tile_b) {
-        return (tile_a == 1 && tile_b == 2) || (tile_a == 2 && tile_b == 1) ||
-               (tile_a == tile_b && tile_a >= 3 && tile_b >= 3);
-    }
-
-    int CountMergeableTile(Board board) {
-        int count = 0;
-        int dx[] = {-1, 0, 1, 0};
-        int dy[] = {0, 1, 0, -1};
-
-        for (int i = 0; i < 4; ++i) {
-            for (int j = 0; j < 4; ++j) {
-                for (int k = 0; k < 4; ++k) {
-                    int x = i + dx[k];
-                    int y = j + dy[k];
-
-                    if (0 <= x && x <= 4 && 0 <= y && y <= 4) {
-                        count += (IsMergeable(board[i][j], board[x][y]));
-                    }
-                }
-            }
-        }
-
-        return count / 2;
-    }
-
-    int CountEmptyTile(Board board) {
-        int count = 0;
-        for (int i = 0; i < 16; ++i) {
-            count += int(board(i) == 0);
-        }
-
-        return count;
-    }
-
-    float CalculateHeuristicEvaluation(Board board) {
-        int empty = CountEmptyTile(board);
-        int merges = CountMergeableTile(board);
-
-        return SCORE_EMPTY_WEIGHT * empty + SCORE_MERGES_WEIGHT * merges;
-    }
-};
-
-class Node {
-
-public:
-    Node(Board board, std::set<int> bag, bool is_player, Action move, bool is_terminal = false) : board_(board),
-                                                                                                  is_player_(
-                                                                                                          is_player),
-                                                                                                  move_(move),
-                                                                                                  score_(0),
-                                                                                                  is_terminal_(
-                                                                                                          is_terminal),
-                                                                                                  bag_(bag) {}
-
-    bool IsTerminal() {
-        return is_terminal_;
-    }
-
-    bool IsPlayer() {
-        return is_player_;
-    }
-
-    float CalculateHeuristicValue() {
-        int empty = CountEmptyTile(board_);
-        int merges = CountMergeableTile(board_);
-
-        return SCORE_EMPTY_WEIGHT * empty + SCORE_MERGES_WEIGHT * merges;
-    }
-
-    Node Slide(int direction) {
-        Board temp_board = Board(board_);
-        temp_board.Slide(direction);
-
-        for (int d = 0; d < 4 && !is_terminal_; ++d) {
-            is_terminal_ |= Board(temp_board).Slide(d);
-        }
-
-        return Node(temp_board, bag_, true, Action::Slide(direction), is_terminal_);
-    }
-
-    Node Place(int position, Board::cell_t tile) {
-        Board temp_board = Board(board_);
-        temp_board.Place(position, tile);
-        bag_.erase(tile);
-
-        return Node(temp_board, bag_, false, Action::Place(position, tile), false);
-    }
-
-private:
-    static constexpr float SCORE_SUM_POWER = 3.5f;
-    static constexpr float SCORE_SUM_WEIGHT = 11.0f;
-    static constexpr float SCORE_MERGES_WEIGHT = 700.0f;
-    static constexpr float SCORE_EMPTY_WEIGHT = 270.0f;
-    static constexpr float SCORE_LOST_PENALTY = -999999999.0f;
-
-    bool is_player_;
-    bool is_terminal_;
-    float score_;
-    std::set<int> bag_;
-    Action move_;
-    Board board_;
-
-    bool IsMergeable(Board::cell_t tile_a, Board::cell_t tile_b) {
-        return (tile_a == 1 && tile_b == 2) || (tile_a == 2 && tile_b == 1) ||
-               (tile_a == tile_b && tile_a >= 3 && tile_b >= 3);
-    }
-
-    int CountMergeableTile(Board board) {
-        int count = 0;
-        int dx[] = {-1, 0, 1, 0};
-        int dy[] = {0, 1, 0, -1};
-
-        for (int i = 0; i < 4; ++i) {
-            for (int j = 0; j < 4; ++j) {
-                for (int k = 0; k < 4; ++k) {
-                    int x = i + dx[k];
-                    int y = j + dy[k];
-
-                    if (0 <= x && x <= 4 && 0 <= y && y <= 4) {
-                        count += (IsMergeable(board[i][j], board[x][y]));
-                    }
-                }
-            }
-        }
-
-        return count / 2;
-    }
-
-    int CountEmptyTile(Board board) {
-        int count = 0;
-        for (int i = 0; i < 16; ++i) {
-            count += int(board(i) == 0);
-        }
-
-        return count;
     }
 };
 
 class ExpectimaxPlayer : public Player {
 public:
-    ExpectimaxPlayer(const std::string &args = "") : Player("name=Expectimax role=Player " + args) {}
+    ExpectimaxPlayer(const std::string &args = "", int depth = 2, int bag = 0x7) : Player(
+            "name=Expectimax role=Player " + args),
+                                                                                   depth_(depth),
+                                                                                   bag_(bag) {}
 
-    Action TakeAction(const Board &board, const Action &evil_action) override {
+    Action TakeAction(const Board64 &board, const Action &evil_action) override {
         float max_score = INT64_MIN;
         int chosen_direction = -1;
-        bag_.erase(Action::Place(evil_action).tile());
+        int tile = Action::Place(evil_action).tile();
 
-        if (bag_.empty()) {
-            bag_ = {1, 2, 3};
+        if(ok) {
+            bag_ = bag_ ^ (1 << (tile - 1));
+
+            if (bag_ == 0) {
+                bag_ = 0x7;
+            }
         }
 
+        ok = true;
+
         for (int direction : directions_) {
-            Board temp_board = board;
+            Board64 temp_board = board;
 
-            Board::reward_t reward = temp_board.Slide(direction);
-            if (reward == -1) continue;
+            temp_board.Slide(direction);
+            if (temp_board == board) continue;
 
-            float score = Expectiminimax(temp_board, 3, false, bag_);
+            float score = Expectimax(temp_board, depth_, direction, bag_);
 
             if (score > max_score) {
                 max_score = score;
@@ -590,13 +240,13 @@ public:
     }
 
 private:
-    float Expectiminimax(Board board, int depth, int player_move, std::set<Board::cell_t> bag) {
+    float Expectimax(Board64 board, int depth, int player_move, int bag) {
         if (IsTerminal(board)) {
-            return SCORE_LOST_PENALTY;
+            return INT32_MIN;
         }
 
         if (depth == 0) {
-            return CalculateHeuristicValue(board);
+            return board.GetHeuristicScore();
         }
 
         float score;
@@ -604,16 +254,18 @@ private:
             score = INT64_MIN;
 
             for (int d = 0; d < 4; ++d) { //direction
-                Board child = Board(board);
+                Board64 child = Board64(board);
                 child.Slide(d);
+                if (child == board) continue;
 
-                score = fmaxf(score, Expectiminimax(child, depth - 1, d, bag));
+                score = fmaxf(score, Expectimax(child, depth - 1, d, bag));
             }
         } else {
-            score = 0;
+            score = 0.0f;
             std::array<unsigned int, 4> positions = getPlacingPosition(player_move);
-            if (bag.empty()) {
-                bag = {1, 2, 3};
+
+            if (bag == 0) {
+                bag = 0x7;
             }
 
             int placing_position = 0;
@@ -621,17 +273,26 @@ private:
                 placing_position += (board(positions[i]) == 0);
             }
 
+            int bag_size = 0;
+            for (int tile = 1; tile <= 3; ++tile) {
+                if (((1 << (tile - 1)) & bag) != 0) {
+                    bag_size++;
+                }
+            }
+
             for (int i = 0; i < 4; ++i) {
-                for (Board::cell_t tile : bag) {
-                    if(board(positions[i]) != 0) continue;
+                if (board(positions[i]) != 0) continue;
 
-                    Board child = Board(board);
-                    child.Place(positions[i], tile);
+                for (int tile = 1; tile <= 3; ++tile) {
+                    if (((1 << (tile - 1)) & bag) != 0) {
+                        Board64 child = Board64(board);
+                        child.Place(positions[i], tile);
 
-                    std::set<Board::cell_t> child_bag = bag;
-                    child_bag.erase(tile);
+                        int child_bag = bag ^(1 << (tile - 1));
 
-                    score += ((1.0f / placing_position) * (1.0 / bag.size()) * Expectiminimax(child, depth - 1, -1, child_bag));
+                        score += ((1.0f / placing_position) * (1.0f / bag_size)) *
+                                 Expectimax(child, depth - 1, -1, child_bag);
+                    }
                 }
             }
 
@@ -656,64 +317,18 @@ private:
         return {3, 7, 11, 15};
     }
 
-    bool IsTerminal(Board &board) {
-        Board temp_board = Board(board);
-
+    bool IsTerminal(Board64 &board) {
         for (int direction = 0; direction < 4; ++direction) {
-            if(Board(temp_board).Slide(direction) != -1)
+            Board64 temp_board = Board64(board);
+            temp_board.Slide(direction);
+            if (temp_board != board)
                 return false;
         }
 
         return true;
     }
 
-    float CalculateHeuristicValue(Board &board) {
-        int empty = CountEmptyTile(board);
-        int merges = CountMergeableTile(board);
-
-        return SCORE_EMPTY_WEIGHT * empty + SCORE_MERGES_WEIGHT * merges;
-    }
-
-    bool IsMergeable(Board::cell_t tile_a, Board::cell_t tile_b) {
-        return (tile_a == 1 && tile_b == 2) || (tile_a == 2 && tile_b == 1) ||
-               (tile_a == tile_b && tile_a >= 3 && tile_b >= 3);
-    }
-
-    int CountMergeableTile(Board board) {
-        int count = 0;
-        int dx[] = {-1, 0, 1, 0};
-        int dy[] = {0, 1, 0, -1};
-
-        for (int i = 0; i < 4; ++i) {
-            for (int j = 0; j < 4; ++j) {
-                for (int k = 0; k < 4; ++k) {
-                    int x = i + dx[k];
-                    int y = j + dy[k];
-
-                    if (0 <= x && x <= 4 && 0 <= y && y <= 4) {
-                        count += (IsMergeable(board[i][j], board[x][y]));
-                    }
-                }
-            }
-        }
-
-        return count / 2;
-    }
-
-    int CountEmptyTile(Board board) {
-        int count = 0;
-        for (int i = 0; i < 16; ++i) {
-            count += int(board(i) == 0);
-        }
-
-        return count;
-    }
-
-    static constexpr float SCORE_SUM_POWER = 3.5f;
-    static constexpr float SCORE_SUM_WEIGHT = 11.0f;
-    static constexpr float SCORE_MERGES_WEIGHT = 700.0f;
-    static constexpr float SCORE_EMPTY_WEIGHT = 270.0f;
-    static constexpr float SCORE_LOST_PENALTY = -999999999.0f;
-
-    std::set<Board::cell_t> bag_;
+    int bag_;
+    int depth_;
+    bool ok = false;
 };
