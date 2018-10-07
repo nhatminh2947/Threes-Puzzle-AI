@@ -209,6 +209,13 @@ public:
                                           row_max_table[(board_ >> 48) & ROW_MASK])));
     }
 
+    cell_t GetMaxTile() const {
+        return std::max(row_max_table[(board_ >> 0) & ROW_MASK],
+                        std::max(row_max_table[(board_ >> 16) & ROW_MASK],
+                                 std::max(row_max_table[(board_ >> 32) & ROW_MASK],
+                                          row_max_table[(board_ >> 48) & ROW_MASK])));
+    }
+
 private:
     board_t board_;
 

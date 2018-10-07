@@ -59,7 +59,7 @@ public:
 			auto& ep = *(--it);
 			sum += ep.score();
 			max = std::max(ep.score(), max);
-//			stat[*std::max_element(&(ep.state()(0)), &(ep.state()(16)))]++;
+			stat[ep.state().GetMaxTile()]++;
 			sop += ep.step();
 			pop += ep.step(Action::Slide::type_);
 			eop += ep.step(Action::Place::type);
@@ -81,14 +81,14 @@ public:
 		std::cout.copyfmt(ff);
 
 		if (!tstat) return;
-//		for (size_t t = 0, c = 0; c < blk; c += stat[t++]) {
-//			if (stat[t] == 0) continue;
-//			unsigned accu = std::accumulate(std::begin(stat) + t, std::end(stat), 0);
-//			std::cout << "\t" << ((1 << (t-3)) * 3); // type
-//			std::cout << "\t" << (accu * 100.0 / blk) << "%"; // win rate
-//			std::cout << "\t" "(" << (stat[t] * 100.0 / blk) << "%" ")"; // percentage of ending
-//			std::cout << std::endl;
-//		}
+		for (size_t t = 0, c = 0; c < blk; c += stat[t++]) {
+			if (stat[t] == 0) continue;
+			unsigned accu = std::accumulate(std::begin(stat) + t, std::end(stat), 0);
+			std::cout << "\t" << ((1 << (t-3)) * 3); // type
+			std::cout << "\t" << (accu * 100.0 / blk) << "%"; // win rate
+			std::cout << "\t" "(" << (stat[t] * 100.0 / blk) << "%" ")"; // percentage of ending
+			std::cout << std::endl;
+		}
 		std::cout << std::endl;
 	}
 

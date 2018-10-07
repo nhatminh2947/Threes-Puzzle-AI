@@ -198,15 +198,18 @@ public:
 
 class ExpectimaxPlayer : public Player {
 public:
-    ExpectimaxPlayer(const std::string &args = "") : Player("name=Expectimax role=Player " + args) {}
+    ExpectimaxPlayer(const std::string &args = "", int depth = 2) : Player("name=Expectimax role=Player " + args),
+                                                                    depth_(depth),
+                                                                    bag_(3) {}
 
     Action TakeAction(const Board64 &board, const Action &evil_action) override {
         float max_score = INT64_MIN;
         int chosen_direction = -1;
-        bag_.erase(Action::Place(evil_action).tile());
+        int tile = Action::Place(evil_action).tile();
+        bag_ = bag_ ^ (1 << (tile - 1));
 
-        if (bag_.empty()) {
-            bag_ = {1, 2, 3};
+        if (bag_ == 0) {
+            bag_ = 0x7;
         }
 
         for (int direction : directions_) {
@@ -215,7 +218,7 @@ public:
             temp_board.Slide(direction);
             if (temp_board == board) continue;
 
-            float score = Expectimax(temp_board, 3, direction, bag_);
+            float score = Expectimax(temp_board, depth_, direction, bag_);
 
             if (score > max_score) {
                 max_score = score;
@@ -231,7 +234,7 @@ public:
     }
 
 private:
-    float Expectimax(Board64 board, int depth, int player_move, std::set<cell_t> bag) {
+    float Expectimax(Board64 board, int depth, int player_move, int bag) {
         if (IsTerminal(board)) {
             return -SCORE_LOST_PENALTY * 1000;
         }
@@ -247,15 +250,16 @@ private:
             for (int d = 0; d < 4; ++d) { //direction
                 Board64 child = Board64(board);
                 child.Slide(d);
-                if(child == board) continue;
+                if (child == board) continue;
 
                 score = fmaxf(score, Expectimax(child, depth - 1, d, bag));
             }
         } else {
             score = 0.0f;
             std::array<unsigned int, 4> positions = getPlacingPosition(player_move);
-            if (bag.empty()) {
-                bag = {1, 2, 3};
+
+            if (bag == 0) {
+                bag = 0x7;
             }
 
             int placing_position = 0;
@@ -263,18 +267,24 @@ private:
                 placing_position += (board(positions[i]) == 0);
             }
 
+            int bag_size = 0;
+            for (int tile = 1; tile <= 3; ++tile) {
+                if ((1 << (tile - 1)) & bag != 0) bag_size++;
+            }
+
             for (int i = 0; i < 4; ++i) {
-                for (cell_t tile : bag) {
-                    if (board(positions[i]) != 0) continue;
+                if (board(positions[i]) != 0) continue;
+
+                for (int tile = 1; tile <= 3; ++tile) {
+                    if ((1 << (tile - 1)) & bag == 0) continue;
 
                     Board64 child = Board64(board);
                     child.Place(positions[i], tile);
 
-                    std::set<cell_t> child_bag = bag;
-                    child_bag.erase(tile);
+                    int child_bag = bag ^ (1 << (tile - 1));
 
-                    score += ((1.0f / placing_position) * (1.0f / bag.size()) *
-                            Expectimax(child, depth - 1, -1, child_bag));
+                    score += ((1.0f / placing_position) * (1.0f / bag_size) *
+                              Expectimax(child, depth - 1, -1, child_bag));
                 }
             }
 
@@ -310,5 +320,6 @@ private:
         return true;
     }
 
-    std::set<cell_t> bag_;
+    int bag_;
+    int depth_;
 };
