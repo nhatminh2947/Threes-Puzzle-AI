@@ -270,14 +270,18 @@ private:
 
             int bag_size = 0;
             for (int tile = 1; tile <= 3; ++tile) {
-                if ((1 << (tile - 1)) & bag != 0) bag_size++;
+                if (((1 << (tile - 1)) & bag) != 0) {
+                    bag_size++;
+                }
             }
 
             for (int i = 0; i < 4; ++i) {
                 if (board(positions[i]) != 0) continue;
 
                 for (int tile = 1; tile <= 3; ++tile) {
-                    if ((1 << (tile - 1)) & bag == 0) continue;
+                    if (((1 << (tile - 1)) & bag) == 0) {
+                        continue;
+                    }
 
                     Board64 child = Board64(board);
                     child.Place(positions[i], tile);
