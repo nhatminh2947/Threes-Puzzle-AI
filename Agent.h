@@ -198,9 +198,10 @@ public:
 
 class ExpectimaxPlayer : public Player {
 public:
-    ExpectimaxPlayer(const std::string &args = "", int depth = 2) : Player("name=Expectimax role=Player " + args),
-                                                                    depth_(depth),
-                                                                    bag_(3) {}
+    ExpectimaxPlayer(const std::string &args = "", int depth = 2, int bag = 0x7) : Player(
+            "name=Expectimax role=Player " + args),
+                                                                                 depth_(depth),
+                                                                                 bag_(bag) {}
 
     Action TakeAction(const Board64 &board, const Action &evil_action) override {
         float max_score = INT64_MIN;
@@ -281,7 +282,7 @@ private:
                     Board64 child = Board64(board);
                     child.Place(positions[i], tile);
 
-                    int child_bag = bag ^ (1 << (tile - 1));
+                    int child_bag = bag ^(1 << (tile - 1));
 
                     score += ((1.0f / placing_position) * (1.0f / bag_size) *
                               Expectimax(child, depth - 1, -1, child_bag));

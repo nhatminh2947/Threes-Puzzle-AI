@@ -62,7 +62,7 @@ int main(int argc, const char *argv[]) {
     }
 
 //    GreedyPlayer player(play_args);
-    ExpectimaxPlayer player(play_args, 1);
+    ExpectimaxPlayer player(play_args, 2);
     RandomEnvironment evil(evil_args);
 
 //    int count = 0;
