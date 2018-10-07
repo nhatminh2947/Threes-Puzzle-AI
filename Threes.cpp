@@ -43,10 +43,9 @@ int main(int argc, const char *argv[]) {
             load = para.substr(para.find("=") + 1);
         } else if (para.find("--save=") == 0) {
             std::string s = para.substr(para.find("=") + 1);
-            if(s == "epoch") {
+            if (s == "epoch") {
                 save = "../results/" + std::to_string(std::time(nullptr));
-            }
-            else save = s;
+            } else save = s;
         } else if (para.find("--summary") == 0) {
             summary = true;
         }
@@ -86,9 +85,8 @@ int main(int argc, const char *argv[]) {
             Action move = agent.TakeAction(game.state(), move);
             if (!game.ApplyAction(move)) break;
             if (agent.CheckForWin(game.state())) {
-		std::cout << "WIN!!!" << std::endl;
-		break;
-	    }
+                break;
+            }
 //            count++;
         }
 

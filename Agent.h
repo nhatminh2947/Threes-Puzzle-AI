@@ -31,7 +31,7 @@ public:
 
     virtual Action TakeAction(const Board64 &b, const Action &prev_action) { return Action(); }
 
-    bool CheckForWin(const Board64 &b) { return b.GetMaxTile() == 14; }
+    bool CheckForWin(const Board64 &b) { return false; }
 
 public:
     virtual std::string property(const std::string &key) const { return meta_.at(key); }
@@ -71,7 +71,7 @@ protected:
 class RandomAgent : public Agent {
 public:
     RandomAgent(const std::string &args = "") : Agent(args) {
-        if (meta_.find("seed") != meta_.end())
+        if (meta_.find(":") != meta_.end())
             engine_.seed(int(meta_["seed"]));
     }
 
@@ -208,7 +208,7 @@ public:
         int chosen_direction = -1;
         int tile = Action::Place(evil_action).tile();
 
-        if(ok) {
+        if (ok) {
             bag_ = bag_ ^ (1 << (tile - 1));
 
             if (bag_ == 0) {
@@ -222,30 +222,25 @@ public:
             Board64 temp_board = board;
             temp_board.Slide(direction);
             if (temp_board == board) continue;
-	    int depth = 1;
-
+            int depth;
             cell_t max_tile = temp_board.GetMaxTile();
-	    if (max_tile <= 4) {
-		depth = 0;
-	    }
-	    else if (max_tile <= 6) {
-		depth = 1;
-	    }
-	    else if (max_tile <= 8) {
-		depth = 2;
-	    }
-	    else if (max_tile <= 12) {
+//            depth = std::max(3, temp_board.CountDistinctTiles() - 2);
+//            if (temp_board.GetMaxTile() >= 8) {
+//                depth += 2;
+//            }
+            if (max_tile <= 4) {
+                depth = 0;
+            } else if (max_tile <= 6) {
+                depth = 1;
+            } else if (max_tile <= 8) {
+                depth = 2;
+            } else if (max_tile <= 12) {
                 depth = 3;
-	    }
-	    else if (max_tile == 12) {
-		depth = 4;
-	    }
-	    else if (max_tile <= 13) {
-		depth = 6;
-	    }
-	    else {
-		depth = 6;
-	    }
+            } else if (max_tile <= 13) {
+                depth = 6;
+            } else {
+                depth = 6;
+            }
 
             //int depth = int(ceil(log2(max_tile)-1));
 

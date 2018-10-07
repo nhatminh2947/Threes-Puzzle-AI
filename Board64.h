@@ -216,6 +216,26 @@ public:
                                           row_max_table[(board_ >> 48) & ROW_MASK])));
     }
 
+    int CountDistinctTiles() {
+        uint16_t bitset = 0;
+        board_t temp_board = board_;
+
+        while (temp_board) {
+            bitset |= 1<<(temp_board & 0xf);
+            temp_board >>= 4;
+        }
+
+        // Don't count empty tiles or "1","2" tiles.
+        bitset >>= 3;
+
+        int count = 0;
+        while (bitset) {
+            bitset &= bitset - 1;
+            count++;
+        }
+        return count;
+    }
+
 private:
     board_t board_;
 
