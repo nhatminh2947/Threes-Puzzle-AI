@@ -85,7 +85,10 @@ int main(int argc, const char *argv[]) {
             Agent &agent = game.TakeTurns(player, evil);
             Action move = agent.TakeAction(game.state(), move);
             if (!game.ApplyAction(move)) break;
-            if (agent.CheckForWin(game.state())) break;
+            if (agent.CheckForWin(game.state())) {
+		std::cout << "WIN!!!" << std::endl;
+		break;
+	    }
 //            count++;
         }
 
