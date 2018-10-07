@@ -62,7 +62,7 @@ int main(int argc, const char *argv[]) {
     }
 
 //    GreedyPlayer player(play_args);
-    ExpectimaxPlayer player(play_args, 5);
+    ExpectimaxPlayer player(play_args, 3);
     RandomEnvironment evil(evil_args);
 
 //    int count = 0;
@@ -76,7 +76,7 @@ int main(int argc, const char *argv[]) {
 //        if (count % 10 == 0) {
 //            std::cout << count << std::endl;
 //        }
-        int count = 0;
+//        int count = 0;
 
         while (true) {
 //            std::cout << count << std::endl;
