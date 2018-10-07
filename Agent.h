@@ -220,11 +220,13 @@ public:
 
         for (int direction : directions_) {
             Board64 temp_board = board;
-
             temp_board.Slide(direction);
             if (temp_board == board) continue;
 
-            float score = Expectimax(temp_board, depth_, direction, bag_);
+            cell_t max_tile = temp_board.GetMaxTile();
+            int depth = int(ceil(log2(max_tile)));
+
+            float score = Expectimax(temp_board, depth, direction, bag_);
 
             if (score > max_score) {
                 max_score = score;
