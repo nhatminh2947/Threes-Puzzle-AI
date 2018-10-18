@@ -15,7 +15,7 @@ class Tuple {
 
     virtual board_t GetIndex(Board64 board, int col) { return 0; }
 
-    virtual void updateScore(board_t b, double delta) {}
+    virtual void UpdateValue(board_t b, double delta) {}
 
     virtual void save(fstream& out) {}
 
@@ -25,11 +25,11 @@ class Tuple {
 class AxeTuple : public Tuple {
 public:
     AxeTuple() {
-        memset(lut[0], 0, (0xffffff + 1) * sizeof(double));
-        memset(lut[1], 0, (0xffffff + 1) * sizeof(double));
+        memset(lut[0], 0, (BASE_MASK + 1) * sizeof(double));
+        memset(lut[1], 0, (BASE_MASK + 1) * sizeof(double));
     }
 
-    void updateScore(board_t b, double delta) {
+    void UpdateValue(board_t b, double delta) {
         for (int i = 0; i < 2; i++) {
             board_t index = getIndex(board, i);
             lut[i][index] += delta;
@@ -56,14 +56,13 @@ public:
     }
 
     void save(fstream& out) {
-        out.write(reinterpret_cast<char*>(lut[0]), (0xffffff+1)*sizeof(double));
-        out.write(reinterpret_cast<char*>(lut[1]), (0xffffff+1)*sizeof(double));
+        out.write(reinterpret_cast<char*>(lut[0]), (BASE_MASK+1)*sizeof(double));
+        out.write(reinterpret_cast<char*>(lut[1]), (BASE_MASK+1)*sizeof(double));
     }
 
     void load(fstream& in) {
         in.read(reinterpret_cast<char*>(lut[0]), (0xffffff+1) * sizeof(double));
         in.read(reinterpret_cast<char*>(lut[1]), (0xffffff+1) * sizeof(double));
-
     }
 
 
@@ -74,14 +73,14 @@ private:
 class RectangleTuple : public Tuple {
 public:
     RectangleTuple() {
-        memset(lut[0], 0, (0xffffff + 1) * sizeof(double));
-        memset(lut[1], 0, (0xffffff + 1) * sizeof(double));
+        memset(lookup_table[0], 0, (0xffffff + 1) * sizeof(double));
+        memset(lookup_table[1], 0, (0xffffff + 1) * sizeof(double));
     }
 
-    void updateScore(board_t b, double delta) {
+    void UpdateValue(board_t b, double delta) {
         for (int i = 0; i < 2; i++) {
             board_t index = getIndex(board, i);
-            lut[i][index] += delta;
+            lookup_table[i][index] += delta;
         }
     }
 
@@ -98,26 +97,25 @@ public:
 
         for (int i = 0; i < 2; i++) {
             board_t index = getIndex(board, i);
-            total_value += lut[i][index];
+            total_value += lookup_table[i][index];
         }
 
         return total_value;
     }
 
     void save(fstream& out) {
-        out.write(reinterpret_cast<char*>(lut[0]), (0xffffff+1)*sizeof(double));
-        out.write(reinterpret_cast<char*>(lut[1]), (0xffffff+1)*sizeof(double));
+        out.write(reinterpret_cast<char*>(lookup_table[0]), (0xffffff+1)*sizeof(double));
+        out.write(reinterpret_cast<char*>(lookup_table[1]), (0xffffff+1)*sizeof(double));
     }
 
     void load(fstream& in) {
-        in.read(reinterpret_cast<char*>(lut[0]), (0xffffff+1) * sizeof(double));
-        in.read(reinterpret_cast<char*>(lut[1]), (0xffffff+1) * sizeof(double));
-
+        in.read(reinterpret_cast<char*>(lookup_table[0]), (0xffffff+1) * sizeof(double));
+        in.read(reinterpret_cast<char*>(lookup_table[1]), (0xffffff+1) * sizeof(double));
     }
 
 
 private:
-    double lut[2][0xffffff + 1];
+    double lookup_table[2][0xffffff + 1];
 };
 
 class LineTuple : public Tuple {
@@ -126,18 +124,29 @@ class LineTuple : public Tuple {
 
 class NTupleNetwork {
 public:
-    NTupleNetwork();
-
-    void AddTuple(Tuple tuple) {
-        tuples.emplace_back(tuple);
+    NTupleNetwork() {
+        tuples.push_back(new AxeTuple());
+        tuples.push_back(new RectangleTuple());
     }
 
-private:
     double GetValue() {
         double total_value = 0;
         for (int i = 0; i < tuples.size(); ++i) {
             total_value += tuples[i].GetValue();
         }
+        return total_value;
+    }
+
+    void updateValue(Board64 board, double delta){
+        for(int i = 0; i < tuples.size(); i++){
+            tuples[i].updateValue(boardStatus, delta);
+        }
+    };
+
+private:
+
+    void AddTuple(Tuple tuple) {
+        tuples.emplace_back(tuple);
     }
 
     std::vector <Tuple> tuples;

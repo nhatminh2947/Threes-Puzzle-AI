@@ -13,9 +13,16 @@
 
 class TdLearning {
 public:
+    void learn() {
+
+    }
+
+    double evaluate() {
+
+    }
 private:
     const double LEARNING_RATE = 0.00025;
-
+    NTupleNetwork n_tuple_network_;
 };
 
 

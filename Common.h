@@ -4,6 +4,8 @@
 #pragma once
 
 #ifndef THREES_CPP_COMMON_H
+#define THREES_CPP_COMMON_H
+
 #include <cstdint>
 
 typedef float reward_t;
@@ -13,6 +15,6 @@ typedef uint8_t cell_t;
 
 static const board_t ROW_MASK = 0xFFFFULL;
 static const board_t COL_MASK = 0x000F000F000F000FULL;
-#define THREES_CPP_COMMON_H
+static const board_t BASE_MASK = 0xffffffULL;
 
 #endif //THREES_CPP_COMMON_H

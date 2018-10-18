@@ -207,7 +207,6 @@ public:
 
     row_t GetRow(int row){
         return row_t((board_ >> 16*row) & ROW_MASK);
-//        return (b>>(48-16*r) & 0xffff);
     }
 
     row_t GetCol(int col) {

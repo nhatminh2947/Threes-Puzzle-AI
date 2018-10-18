@@ -64,11 +64,9 @@ int main(int argc, const char *argv[]) {
         summary |= stat.IsFinished();
     }
 
-//    GreedyPlayer player(play_args);
     ExpectimaxPlayer player(play_args, 3);
     RandomEnvironment evil(evil_args);
 
-//    int count = 0;
     while (!stat.IsFinished()) {
         player.OpenEpisode("~:" + evil.name());
         evil.OpenEpisode(player.name() + ":~");
@@ -76,20 +74,11 @@ int main(int argc, const char *argv[]) {
         stat.OpenEpisode(player.name() + ":" + evil.name());
         Episode &game = stat.Back();
 
-//        if (count % 10 == 0) {
-//            std::cout << count << std::endl;
-//        }
-//        int count = 0;
-
         while (true) {
-//            std::cout << count << std::endl;
-//            std::cout << game.state() << std::endl;
-
             Agent &agent = game.TakeTurns(player, evil);
             Action move = agent.TakeAction(game.state(), move);
             if (!game.ApplyAction(move)) break;
             if (agent.CheckForWin(game.state())) break;
-//            count++;
         }
 
         Agent &win = game.TakeLastTurns(player, evil);
