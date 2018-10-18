@@ -332,3 +332,12 @@ private:
     int depth_;
     bool ok = false;
 };
+
+class TdLearningPlayer : public Player {
+public:
+    TdLearningPlayer(const std::string &args = "", int bag = 0x7) : Player("name=TdLearning role=Player " + args) {};
+private:
+    Action Policy(Board64 board) {
+
+    }
+};

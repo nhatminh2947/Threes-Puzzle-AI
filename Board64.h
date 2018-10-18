@@ -182,17 +182,6 @@ public:
         return GetBoardScore(ret);
     }
 
-    board_t Transpose(board_t board) {
-        board_t a1 = board & 0xF0F00F0FF0F00F0FULL;
-        board_t a2 = board & 0x0000F0F00000F0F0ULL;
-        board_t a3 = board & 0x0F0F00000F0F0000ULL;
-        board_t a = a1 | (a2 << 12) | (a3 >> 12);
-        board_t b1 = a & 0xFF00FF0000FF00FFULL;
-        board_t b2 = a & 0x00FF00FF00000000ULL;
-        board_t b3 = a & 0x00000000FF00FF00ULL;
-        return b1 | (b2 >> 24) | (b3 << 24);
-    }
-
     float GetHeuristicScore() {
         return ScoreHelper(board_, heur_score_table) +
                ScoreHelper(Transpose(board_), heur_score_table);
@@ -216,6 +205,16 @@ public:
                                           row_max_table[(board_ >> 48) & ROW_MASK])));
     }
 
+    row_t GetRow(int row){
+        return row_t((board_ >> 16*row) & ROW_MASK);
+//        return (b>>(48-16*r) & 0xffff);
+    }
+
+    row_t GetCol(int col) {
+        board_t transpose_board = Transpose(board_);
+        return row_t((transpose_board >> 16*col) & ROW_MASK);
+    }
+
 private:
     board_t board_;
 
@@ -224,5 +223,16 @@ private:
                table[(board >> 16) & ROW_MASK] +
                table[(board >> 32) & ROW_MASK] +
                table[(board >> 48) & ROW_MASK];
+    }
+
+    board_t Transpose(board_t board) {
+        board_t a1 = board & 0xF0F00F0FF0F00F0FULL;
+        board_t a2 = board & 0x0000F0F00000F0F0ULL;
+        board_t a3 = board & 0x0F0F00000F0F0000ULL;
+        board_t a = a1 | (a2 << 12) | (a3 >> 12);
+        board_t b1 = a & 0xFF00FF0000FF00FFULL;
+        board_t b2 = a & 0x00FF00FF00000000ULL;
+        board_t b3 = a & 0x00000000FF00FF00ULL;
+        return b1 | (b2 >> 24) | (b3 << 24);
     }
 };

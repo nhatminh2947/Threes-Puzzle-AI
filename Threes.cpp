@@ -9,6 +9,9 @@
 #include "Episode.h"
 #include "Statistic.h"
 
+// 0 1 2 3 4 5   6   7   8   9   10  11  12   13   14
+// 0 1 2 3 6 12  24  48  92  192 384 768 1536 3072 6144
+
 int main(int argc, const char *argv[]) {
     InitLookUpTables();
 
