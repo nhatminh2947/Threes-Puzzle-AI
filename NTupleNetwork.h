@@ -1,155 +1,157 @@
 //
 // Created by cgilab on 10/18/18.
 //
+#pragma once
 
 #ifndef THREES_PUZZLE_AI_NTUPLENETWORK_H
 #define THREES_PUZZLE_AI_NTUPLENETWORK_H
 
-#import <vector>
-#import <iostream>
-#import "Board64.h"
+#include <vector>
+#include <iostream>
+#include <fstream>
+#include <memory>
+#include <array>
+#include "Board64.h"
 
 
 class Tuple {
-    virtual double GetValue(Board64 board) { return 0; }
+public:
+    Tuple() = default;
 
-    virtual board_t GetIndex(Board64 board, int col) { return 0; }
+    virtual double GetValue(board_t board) { return 0; }
+
+    virtual board_t GetIndex(board_t board, int col) { return 0; }
 
     virtual void UpdateValue(board_t b, double delta) {}
 
-    virtual void save(fstream& out) {}
+    virtual void save(std::fstream &out) {}
 
-    virtual void load(fstream& in) {}
-}
+    virtual void load(std::fstream &in) {}
+};
 
 class AxeTuple : public Tuple {
 public:
-    AxeTuple() {
-        memset(lut[0], 0, (BASE_MASK + 1) * sizeof(double));
-        memset(lut[1], 0, (BASE_MASK + 1) * sizeof(double));
+    AxeTuple() : Tuple() {
+        std::fill(lookup_table[0].begin(), lookup_table[0].end(), 0);
+        std::fill(lookup_table[1].begin(), lookup_table[1].end(), 0);
     }
 
-    void UpdateValue(board_t b, double delta) {
+    void UpdateValue(board_t board, double delta) override {
         for (int i = 0; i < 2; i++) {
-            board_t index = getIndex(board, i);
-            lut[i][index] += delta;
+            board_t index = GetIndex(board, i);
+            lookup_table[i][index] += delta;
         }
     }
 
-    board_t GetIndex(Board64 board, int col) {
-        board_t r1 = board.GetCol(col);
-        board_t r2 = board.GetCol(col + 1);
+    board_t GetIndex(board_t board, int col) override {
+        Board64 b(board);
+
+        board_t r1 = b.GetCol(col);
+        board_t r2 = b.GetCol(col + 1);
         board_t index = (r1 & 0xffff) << 8 | (r2 & 0xff);
 
         return index;
     }
 
-    double GetValue(Board64 board) {
+    double GetValue(board_t board) override {
         double total_value = 0.0;
 
         for (int i = 0; i < 2; i++) {
-            board_t index = getIndex(board, i);
-            total_value += lut[i][index];
-        }
-
-        return total_value;
-    }
-
-    void save(fstream& out) {
-        out.write(reinterpret_cast<char*>(lut[0]), (BASE_MASK+1)*sizeof(double));
-        out.write(reinterpret_cast<char*>(lut[1]), (BASE_MASK+1)*sizeof(double));
-    }
-
-    void load(fstream& in) {
-        in.read(reinterpret_cast<char*>(lut[0]), (0xffffff+1) * sizeof(double));
-        in.read(reinterpret_cast<char*>(lut[1]), (0xffffff+1) * sizeof(double));
-    }
-
-
-private:
-    double lut[2][0xffffff + 1];
-};
-
-class RectangleTuple : public Tuple {
-public:
-    RectangleTuple() {
-        memset(lookup_table[0], 0, (0xffffff + 1) * sizeof(double));
-        memset(lookup_table[1], 0, (0xffffff + 1) * sizeof(double));
-    }
-
-    void UpdateValue(board_t b, double delta) {
-        for (int i = 0; i < 2; i++) {
-            board_t index = getIndex(board, i);
-            lookup_table[i][index] += delta;
-        }
-    }
-
-    board_t GetIndex(Board64 board, int col) {
-        board_t r1 = board.GetCol(col);
-        board_t r2 = board.GetCol(col + 1);
-        board_t index = (r1&0xfff0) << 8ull | r2 >> 4;
-
-        return index;
-    }
-
-    double GetValue(Board64 board) {
-        double total_value = 0.0;
-
-        for (int i = 0; i < 2; i++) {
-            board_t index = getIndex(board, i);
+            board_t index = GetIndex(board, i);
             total_value += lookup_table[i][index];
         }
 
         return total_value;
     }
 
-    void save(fstream& out) {
-        out.write(reinterpret_cast<char*>(lookup_table[0]), (0xffffff+1)*sizeof(double));
-        out.write(reinterpret_cast<char*>(lookup_table[1]), (0xffffff+1)*sizeof(double));
+    void save(std::fstream& out) override {
+        out.write(reinterpret_cast<char*>(&lookup_table[0]), (SIX_TUPLE_MASK+1)*sizeof(double));
+        out.write(reinterpret_cast<char*>(&lookup_table[1]), (SIX_TUPLE_MASK+1)*sizeof(double));
     }
 
-    void load(fstream& in) {
-        in.read(reinterpret_cast<char*>(lookup_table[0]), (0xffffff+1) * sizeof(double));
-        in.read(reinterpret_cast<char*>(lookup_table[1]), (0xffffff+1) * sizeof(double));
+    void load(std::fstream& in) override {
+        in.read(reinterpret_cast<char*>(&lookup_table[0]), (0xffffff+1) * sizeof(double));
+        in.read(reinterpret_cast<char*>(&lookup_table[1]), (0xffffff+1) * sizeof(double));
     }
 
 
 private:
-    double lookup_table[2][0xffffff + 1];
+    std::array<std::array<double, SIX_TUPLE_MASK + 1>, 2> lookup_table;
 };
 
-class LineTuple : public Tuple {
+class RectangleTuple : public Tuple {
+public:
+    RectangleTuple() {
+        std::fill(lookup_table[0].begin(), lookup_table[0].end(), 0);
+        std::fill(lookup_table[1].begin(), lookup_table[1].end(), 0);
+    }
 
+    void UpdateValue(board_t board, double delta) override {
+        for (int i = 0; i < 2; i++) {
+            board_t index = GetIndex(board, i);
+            lookup_table[i][index] += delta;
+        }
+    }
+
+    board_t GetIndex(board_t board, int col) override {
+        Board64 b(board);
+        board_t r1 = b.GetCol(col);
+        board_t r2 = b.GetCol(col + 1);
+        board_t index = (r1&0xfff0) << 8ull | r2 >> 4;
+
+        return index;
+    }
+
+    double GetValue(board_t board) override {
+        double total_value = 0.0;
+
+        for (int i = 0; i < 2; i++) {
+            board_t index = GetIndex(board, i);
+            total_value += lookup_table[i][index];
+        }
+
+        return total_value;
+    }
+
+    void save(std::fstream& out) override {
+        out.write(reinterpret_cast<char*>(&lookup_table[0]), (SIX_TUPLE_MASK+1)*sizeof(double));
+        out.write(reinterpret_cast<char*>(&lookup_table[1]), (SIX_TUPLE_MASK+1)*sizeof(double));
+    }
+
+    void load(std::fstream& in) override {
+        in.read(reinterpret_cast<char*>(&lookup_table[0]), (0xffffff+1) * sizeof(double));
+        in.read(reinterpret_cast<char*>(&lookup_table[1]), (0xffffff+1) * sizeof(double));
+    }
+
+
+private:
+    std::array<std::array<double, SIX_TUPLE_MASK + 1>, 2> lookup_table;
 };
 
 class NTupleNetwork {
+
 public:
     NTupleNetwork() {
-        tuples.push_back(new AxeTuple());
-        tuples.push_back(new RectangleTuple());
+        tuples.emplace_back(new AxeTuple());
+        tuples.emplace_back(new RectangleTuple());
     }
 
-    double GetValue() {
+    double GetValue(board_t board) {
         double total_value = 0;
-        for (int i = 0; i < tuples.size(); ++i) {
-            total_value += tuples[i].GetValue();
+        for (auto &tuple : tuples) {
+            total_value += tuple->GetValue(board);
         }
         return total_value;
     }
 
-    void updateValue(Board64 board, double delta){
-        for(int i = 0; i < tuples.size(); i++){
-            tuples[i].updateValue(boardStatus, delta);
+    void UpdateValue(board_t board, double delta){
+        for (auto &tuple : tuples) {
+            tuple->UpdateValue(board, delta);
         }
-    };
-
-private:
-
-    void AddTuple(Tuple tuple) {
-        tuples.emplace_back(tuple);
     }
 
-    std::vector <Tuple> tuples;
+private:
+    std::vector<std::unique_ptr<Tuple>> tuples;
 };
 
 

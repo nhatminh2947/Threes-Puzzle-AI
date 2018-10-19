@@ -64,7 +64,8 @@ int main(int argc, const char *argv[]) {
         summary |= stat.IsFinished();
     }
 
-    ExpectimaxPlayer player(play_args, 3);
+    TdLearningPlayer player(play_args);
+//    ExpectimaxPlayer player(play_args, 3);
     RandomEnvironment evil(evil_args);
 
     while (!stat.IsFinished()) {
@@ -86,6 +87,10 @@ int main(int argc, const char *argv[]) {
 
         player.CloseEpisode(win.name());
         evil.CloseEpisode(win.name());
+
+        if(LEARNING) {
+            player.Learn(game);
+        }
     }
 
     if (summary) {

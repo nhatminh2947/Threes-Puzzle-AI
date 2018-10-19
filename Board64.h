@@ -45,6 +45,10 @@ public:
         return row_t((board_ >> (i * 16)) & ROW_MASK);
     }
 
+    board_t GetBoard() {
+        return board_;
+    }
+
     board_t operator()(int i) {
         int row_id = i / 4;
         int col_id = i % 4;
@@ -187,7 +191,7 @@ public:
                ScoreHelper(Transpose(board_), heur_score_table);
     }
 
-    float GetBoardScore(board_t board) {
+    static float GetBoardScore(board_t board) {
         return ScoreHelper(board, score_table);
     }
 
@@ -217,7 +221,7 @@ public:
 private:
     board_t board_;
 
-    float ScoreHelper(board_t board, const float *table) {
+    static float ScoreHelper(board_t board, const float *table) {
         return table[(board >> 0) & ROW_MASK] +
                table[(board >> 16) & ROW_MASK] +
                table[(board >> 32) & ROW_MASK] +

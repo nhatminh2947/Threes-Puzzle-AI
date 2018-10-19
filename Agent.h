@@ -11,6 +11,9 @@
 #include "Common.h"
 #include "Board64.h"
 #include "Action.h"
+#include "Episode.h"
+#include "NTupleNetwork.h"
+
 
 class Agent {
 public:
@@ -208,7 +211,7 @@ public:
         int chosen_direction = -1;
         int tile = Action::Place(evil_action).tile();
 
-        if(ok) {
+        if (ok) {
             bag_ = bag_ ^ (1 << (tile - 1));
 
             if (bag_ == 0) {
@@ -335,9 +338,98 @@ private:
 
 class TdLearningPlayer : public Player {
 public:
-    TdLearningPlayer(const std::string &args = "", int bag = 0x7) : Player("name=TdLearning role=Player " + args) {};
-private:
-    Action Policy(Board64 board) {
+    TdLearningPlayer(const std::string &args = "") : Player("name=TdLearning role=Player " + args),
+                                                     learning_rate(0.00025) {
+        tuple_network = NTupleNetwork();
+        if (meta_.find("alpha") != meta_.end())
+            learning_rate = float(meta_["alpha"]);
+    };
 
+    void load_weights(const std::string& path) {
+        std::ifstream in(path, std::ios::in | std::ios::binary);
+        if (!in.is_open()) std::exit(-1);
+        uint32_t size;
+        in.read(reinterpret_cast<char*>(&size), sizeof(size));
+//        net.resize(size);
+//        for (weight& w : net) in >> w;
+
+
+
+        in.close();
     }
+
+    void save_weights(const std::string& path) {
+//        std::ofstream out(path, std::ios::out | std::ios::binary | std::ios::trunc);
+//        if (!out.is_open()) std::exit(-1);
+//        uint32_t size = net.size();
+//        out.write(reinterpret_cast<char*>(&size), sizeof(size));
+//        for (weight& w : net) out << w;
+//        out.close();
+    }
+
+    void Learn(Episode episode) {
+        std::vector<Episode::Move> moves = episode.GetMoves();
+
+        std::cout << "Move size = " << moves.size() << std::endl;
+
+        //Training last state
+        Episode::Move state_t1 = moves.back();
+        Episode::Move state_t2 = moves.back();
+
+        board_t board_t1 = state_t1.board;
+        board_t board_t2 = state_t2.board;
+
+        double reward = Board64::GetBoardScore(board_t2) - Board64::GetBoardScore(board_t2);
+
+        tuple_network.UpdateValue(board_t1, learning_rate * (reward + V(board_t2) - V(board_t1)));
+
+        for (int i = moves.size() - 2; i >= 1; --i) {
+            Episode::Move state_t1 = moves[i];
+            Episode::Move state_t2 = moves[i+1];
+
+            board_t board_t1 = state_t1.board;
+            board_t board_t2 = state_t2.board;
+
+            double reward = Board64::GetBoardScore(board_t2) - Board64::GetBoardScore(board_t2);
+
+            tuple_network.UpdateValue(board_t1, learning_rate * (reward + V(board_t2) - V(board_t1)));
+        }
+    }
+
+    Action TakeAction(const Board64 &board, const Action &evil_action) override {
+        return Policy(board);
+    }
+
+    Action Policy(Board64 board) {
+        float max_score = INT64_MIN;
+        int chosen_direction = -1;
+
+        for (int direction : directions_) {
+            Board64 temp_board = board;
+
+            temp_board.Slide(direction);
+            if (temp_board == board) continue;
+
+            double score = Board64::GetBoardScore(temp_board.GetBoard()) + V(temp_board.GetBoard());
+
+            if (score > max_score) {
+                max_score = score;
+                chosen_direction = direction;
+            }
+        }
+
+        if (chosen_direction != -1) {
+            return Action::Slide(chosen_direction);
+        }
+
+        return Action();
+    }
+
+    double V(board_t board) {
+        return tuple_network.GetValue(board);
+    }
+
+private:
+    double learning_rate;
+    NTupleNetwork tuple_network;
 };
