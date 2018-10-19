@@ -218,6 +218,18 @@ public:
         return row_t((transpose_board >> 16*col) & ROW_MASK);
     }
 
+    static void PrintBoard(board_t board) {
+        int i,j;
+        for(i=0; i<4; i++) {
+            for(j=0; j<4; j++) {
+                printf("%c", "0123456789abcdef"[(board)&0xf]);
+                board >>= 4;
+            }
+            printf("\n");
+        }
+        printf("\n");
+    }
+
 private:
     board_t board_;
 

@@ -370,7 +370,7 @@ public:
     void Learn(Episode episode) {
         std::vector<Episode::Move> moves = episode.GetMoves();
 
-        std::cout << "Move size = " << moves.size() << std::endl;
+//        std::cout << "Move size = " << moves.size() << std::endl;
 
         //Training last state
         Episode::Move state_t1 = moves.back();
@@ -378,19 +378,23 @@ public:
 
         board_t board_t1 = state_t1.board;
         board_t board_t2 = state_t2.board;
+//        Board64::PrintBoard(board_t1);
+//        Board64::PrintBoard(board_t2);
 
         double reward = Board64::GetBoardScore(board_t2) - Board64::GetBoardScore(board_t2);
 
         tuple_network.UpdateValue(board_t1, learning_rate * (reward + V(board_t2) - V(board_t1)));
 
-        for (int i = moves.size() - 2; i >= 1; --i) {
-            Episode::Move state_t1 = moves[i];
-            Episode::Move state_t2 = moves[i+1];
+        for (int i = moves.size() - 3; i >= 1; i -= 2) {
+            state_t1 = moves[i];
+            state_t2 = moves[i+2];
 
-            board_t board_t1 = state_t1.board;
-            board_t board_t2 = state_t2.board;
+            board_t1 = state_t1.board;
+            board_t2 = state_t2.board;
+//            Board64::PrintBoard(board_t1);
+//            Board64::PrintBoard(board_t2);
 
-            double reward = Board64::GetBoardScore(board_t2) - Board64::GetBoardScore(board_t2);
+            reward = Board64::GetBoardScore(board_t2) - Board64::GetBoardScore(board_t1);
 
             tuple_network.UpdateValue(board_t1, learning_rate * (reward + V(board_t2) - V(board_t1)));
         }

@@ -46,9 +46,9 @@ public:
     board_t GetIndex(board_t board, int col) override {
         Board64 b(board);
 
-        board_t r1 = b.GetCol(col);
-        board_t r2 = b.GetCol(col + 1);
-        board_t index = (r1 & 0xffff) << 8 | (r2 & 0xff);
+        board_t c1 = b.GetCol(col);
+        board_t c2 = b.GetCol(col + 1);
+        board_t index = (c1 & 0xffff) << 8 | (c2 & 0xff);
 
         return index;
     }
@@ -95,9 +95,10 @@ public:
 
     board_t GetIndex(board_t board, int col) override {
         Board64 b(board);
-        board_t r1 = b.GetCol(col);
-        board_t r2 = b.GetCol(col + 1);
-        board_t index = (r1&0xfff0) << 8ull | r2 >> 4;
+
+        board_t c1 = b.GetCol(col);
+        board_t c2 = b.GetCol(col + 1);
+        board_t index = (c1&0xfff0) << 8ULL | (c2>>4);
 
         return index;
     }
@@ -106,7 +107,7 @@ public:
         double total_value = 0.0;
 
         for (int i = 0; i < 2; i++) {
-            board_t index = GetIndex(board, i);
+            board_t index = GetIndex(board, i+1);
             total_value += lookup_table[i][index];
         }
 
