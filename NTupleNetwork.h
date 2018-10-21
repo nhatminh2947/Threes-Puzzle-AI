@@ -51,7 +51,14 @@ public:
 
         for (int i = 0; i < 4; ++i) {
             for (int j = 0; j < 2; j++) {
-                board_t index = GetIndex(b.GetBoard(), j);
+                Board64 temp_board(b.GetBoard());
+
+                board_t index = GetIndex(temp_board.GetBoard(), j);
+                lookup_table[j][index] += delta;
+
+                temp_board.ReflectVertical();
+
+                index = GetIndex(temp_board.GetBoard(), j);
                 lookup_table[j][index] += delta;
             }
             b.TurnRight();
@@ -118,8 +125,17 @@ public:
 
         for (int i = 0; i < 4; ++i) {
             for (int j = 0; j < 2; j++) {
-                board_t index = GetIndex(b.GetBoard(), j);
-                lookup_table[j][index] += delta;
+                Board64 temp_board(b.GetBoard());
+
+                board_t index1 = GetIndex(temp_board.GetBoard(), j);
+                lookup_table[j][index1] += delta;
+
+                temp_board.ReflectVertical();
+
+                board_t index2 = GetIndex(temp_board.GetBoard(), j);
+                if(j == 1 && index1 != index2) {
+                    lookup_table[j][index2] += delta;
+                }
             }
             b.TurnRight();
         }
@@ -132,8 +148,17 @@ public:
 
         for (int i = 0; i < 4; ++i) {
             for (int j = 0; j < 2; ++j) {
-                board_t index = GetIndex(b.GetBoard(), j);
-                total_value += lookup_table[j][index];
+                Board64 temp_board(b.GetBoard());
+
+                board_t index1 = GetIndex(temp_board.GetBoard(), j);
+                total_value += lookup_table[j][index1];
+
+                temp_board.ReflectVertical();
+
+                board_t index2 = GetIndex(temp_board.GetBoard(), j);
+                if(j == 1 && index1 != index2) {
+                    total_value += lookup_table[j][index2];
+                }
             }
             b.TurnRight();
         }

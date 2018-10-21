@@ -354,7 +354,7 @@ public:
         }
     }
 
-    void Learn(Episode episode) {
+    void Learn(const Episode &episode) {
         std::vector<Episode::Move> moves = episode.GetMoves();
         moves.push_back(moves.back());
 
