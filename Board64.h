@@ -260,8 +260,6 @@ public:
     void ReflectVertical() {
         for (int r = 0; r < 4; r++) {
             this->ReverseRow(r);
-
-            PrintBoard(board_);
         }
     }
 
