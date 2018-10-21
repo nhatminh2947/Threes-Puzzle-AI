@@ -125,9 +125,11 @@ public:
 		while (i--) it++;
 		return *it;
 	}
+
 	Episode& Front() {
 		return data_.front();
 	}
+
 	Episode& Back() {
 		return data_.back();
 	}
@@ -136,6 +138,7 @@ public:
 		for (const Episode& rec : stat.data_) out << rec << std::endl;
 		return out;
 	}
+
 	friend std::istream& operator >>(std::istream& in, Statistic& stat) {
 		for (std::string line; std::getline(in, line) && line.size(); ) {
 			stat.data_.emplace_back();

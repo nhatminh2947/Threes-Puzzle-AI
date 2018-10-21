@@ -65,7 +65,14 @@ public:
 
         for (int i = 0; i < 4; ++i) {
             for (int j = 0; j < 2; ++j) {
-                board_t index = GetIndex(b.GetBoard(), j);
+                Board64 temp_board(b.GetBoard());
+
+                board_t index = GetIndex(temp_board.GetBoard(), j);
+                total_value += lookup_table[j][index];
+
+                temp_board.ReflectVertical();
+
+                index = GetIndex(temp_board.GetBoard(), j);
                 total_value += lookup_table[j][index];
             }
             b.TurnRight();

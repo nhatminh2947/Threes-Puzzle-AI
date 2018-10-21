@@ -127,8 +127,8 @@ public:
         if (position >= 16) return -1;
         if (tile != 1 && tile != 2 && tile != 3) return -1;
 
-        int row_id = position / 4;
-        int col_id = position % 4;
+        board_t row_id = position / 4;
+        board_t col_id = position % 4;
 
         board_t row = board_t(tile) << (row_id * 16);
         board_t cell = row << (col_id * 4);
@@ -228,12 +228,16 @@ public:
     }
 
     row_t GetRow(int row){
-        return row_t((board_ >> 16*row) & ROW_MASK);
+        return row_t((board_ >> (16ULL*row)) & ROW_MASK);
     }
 
     row_t GetCol(int col) {
         board_t transpose_board = ::Transpose(board_);
-        return row_t((transpose_board >> 16*col) & ROW_MASK);
+        return row_t((transpose_board >> 16ULL*col) & ROW_MASK);
+    }
+
+    void SetRow(int row_id, row_t value) {
+        board_ = (board_ ^ (board_t(GetRow(row_id)) << (16ULL * row_id))) | (board_t(value) << (16ULL * row_id));
     }
 
     static void PrintBoard(board_t board) {
@@ -256,6 +260,8 @@ public:
     void ReflectVertical() {
         for (int r = 0; r < 4; r++) {
             this->ReverseRow(r);
+
+            PrintBoard(board_);
         }
     }
 
@@ -266,7 +272,10 @@ public:
 private:
     board_t board_;
 
-    row_t ReverseRow(row_t r) {
-        return (r&0xf000) >> 12 | (r&0x0f00) >> 4 | (r&0x00f0)<<4 | (r&0x000f) << 12;
+    row_t ReverseRow(int row_id) {
+        row_t row = GetRow(row_id);
+        row = (row&0xf000) >> 12 | (row&0x0f00) >> 4 | (row&0x00f0)<<4 | (row&0x000f) << 12;
+
+        SetRow(row_id, row);
     }
 };

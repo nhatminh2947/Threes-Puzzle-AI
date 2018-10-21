@@ -358,6 +358,9 @@ public:
         std::vector<Episode::Move> moves = episode.GetMoves();
         moves.push_back(moves.back());
 
+        //Update last state
+        tuple_network_.UpdateValue(moves.back().board, learning_rate_ * (0 - V(moves.back().board)));
+
         for (int i = moves.size() - 3; i >= 1; i -= 2) {
             Episode::Move state_t1 = moves[i];
             Episode::Move state_t2 = moves[i + 2];
@@ -378,7 +381,7 @@ public:
     }
 
     Action Policy(Board64 board) {
-        float max_score = INT64_MIN;
+        double max_score = INT64_MIN;
         int chosen_direction = -1;
 
         for (int direction : directions_) {
@@ -419,6 +422,7 @@ public:
         if (!load_stream.is_open()) std::exit(-1);
 
         tuple_network_.load(load_stream);
+        load_stream.close();
     }
 
 private:
