@@ -36,13 +36,6 @@ public:
         std::fill(lookup_table[1].begin(), lookup_table[1].end(), 0);
     }
 
-    void UpdateValue(board_t board, double delta) override {
-        for (int i = 0; i < 2; i++) {
-            board_t index = GetIndex(board, i);
-            lookup_table[i][index] += delta;
-        }
-    }
-
     board_t GetIndex(board_t board, int col) override {
         Board64 b(board);
 
@@ -53,12 +46,29 @@ public:
         return index;
     }
 
+    void UpdateValue(board_t board, double delta) override {
+        Board64 b(board);
+
+        for (int i = 0; i < 4; ++i) {
+            for (int j = 0; j < 2; j++) {
+                board_t index = GetIndex(b.GetBoard(), j);
+                lookup_table[j][index] += delta;
+            }
+            b.TurnRight();
+        }
+    }
+
     double GetValue(board_t board) override {
         double total_value = 0.0;
 
-        for (int i = 0; i < 2; i++) {
-            board_t index = GetIndex(board, i);
-            total_value += lookup_table[i][index];
+        Board64 b(board);
+
+        for (int i = 0; i < 4; ++i) {
+            for (int j = 0; j < 2; ++j) {
+                board_t index = GetIndex(b.GetBoard(), j);
+                total_value += lookup_table[j][index];
+            }
+            b.TurnRight();
         }
 
         return total_value;
@@ -86,13 +96,6 @@ public:
         std::fill(lookup_table[1].begin(), lookup_table[1].end(), 0);
     }
 
-    void UpdateValue(board_t board, double delta) override {
-        for (int i = 0; i < 2; i++) {
-            board_t index = GetIndex(board, i);
-            lookup_table[i][index] += delta;
-        }
-    }
-
     board_t GetIndex(board_t board, int col) override {
         Board64 b(board);
 
@@ -103,12 +106,29 @@ public:
         return index;
     }
 
+    void UpdateValue(board_t board, double delta) override {
+        Board64 b(board);
+
+        for (int i = 0; i < 4; ++i) {
+            for (int j = 0; j < 2; j++) {
+                board_t index = GetIndex(b.GetBoard(), j);
+                lookup_table[j][index] += delta;
+            }
+            b.TurnRight();
+        }
+    }
+
     double GetValue(board_t board) override {
         double total_value = 0.0;
 
-        for (int i = 0; i < 2; i++) {
-            board_t index = GetIndex(board, i+1);
-            total_value += lookup_table[i][index];
+        Board64 b(board);
+
+        for (int i = 0; i < 4; ++i) {
+            for (int j = 0; j < 2; ++j) {
+                board_t index = GetIndex(b.GetBoard(), j);
+                total_value += lookup_table[j][index];
+            }
+            b.TurnRight();
         }
 
         return total_value;
