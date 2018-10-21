@@ -24,9 +24,9 @@ public:
 
     virtual void UpdateValue(board_t b, double delta) {}
 
-    virtual void save(std::fstream &out) {}
+    virtual void save(std::ofstream &out) {}
 
-    virtual void load(std::fstream &in) {}
+    virtual void load(std::ifstream &in) {}
 };
 
 class AxeTuple : public Tuple {
@@ -48,7 +48,7 @@ public:
 
         board_t c1 = b.GetCol(col);
         board_t c2 = b.GetCol(col + 1);
-        board_t index = (c1 & 0xffff) << 8 | (c2 & 0xff);
+        board_t index = ((c1 & 0xffff) << 8) | ((c2 & 0xff00) >> 8);
 
         return index;
     }
@@ -64,14 +64,14 @@ public:
         return total_value;
     }
 
-    void save(std::fstream& out) override {
+    void save(std::ofstream& out) override {
         out.write(reinterpret_cast<char*>(&lookup_table[0]), (SIX_TUPLE_MASK+1)*sizeof(double));
         out.write(reinterpret_cast<char*>(&lookup_table[1]), (SIX_TUPLE_MASK+1)*sizeof(double));
     }
 
-    void load(std::fstream& in) override {
-        in.read(reinterpret_cast<char*>(&lookup_table[0]), (0xffffff+1) * sizeof(double));
-        in.read(reinterpret_cast<char*>(&lookup_table[1]), (0xffffff+1) * sizeof(double));
+    void load(std::ifstream& in) override {
+        in.read(reinterpret_cast<char*>(&lookup_table[0]), (SIX_TUPLE_MASK+1) * sizeof(double));
+        in.read(reinterpret_cast<char*>(&lookup_table[1]), (SIX_TUPLE_MASK+1) * sizeof(double));
     }
 
 
@@ -98,7 +98,7 @@ public:
 
         board_t c1 = b.GetCol(col);
         board_t c2 = b.GetCol(col + 1);
-        board_t index = (c1&0xfff0) << 8ULL | (c2>>4);
+        board_t index = (c1&0xfff) << 12ULL | (c2&0xfff);
 
         return index;
     }
@@ -114,14 +114,14 @@ public:
         return total_value;
     }
 
-    void save(std::fstream& out) override {
+    void save(std::ofstream& out) override {
         out.write(reinterpret_cast<char*>(&lookup_table[0]), (SIX_TUPLE_MASK+1)*sizeof(double));
         out.write(reinterpret_cast<char*>(&lookup_table[1]), (SIX_TUPLE_MASK+1)*sizeof(double));
     }
 
-    void load(std::fstream& in) override {
-        in.read(reinterpret_cast<char*>(&lookup_table[0]), (0xffffff+1) * sizeof(double));
-        in.read(reinterpret_cast<char*>(&lookup_table[1]), (0xffffff+1) * sizeof(double));
+    void load(std::ifstream& in) override {
+        in.read(reinterpret_cast<char*>(&lookup_table[0]), (SIX_TUPLE_MASK+1) * sizeof(double));
+        in.read(reinterpret_cast<char*>(&lookup_table[1]), (SIX_TUPLE_MASK+1) * sizeof(double));
     }
 
 
@@ -148,6 +148,18 @@ public:
     void UpdateValue(board_t board, double delta){
         for (auto &tuple : tuples) {
             tuple->UpdateValue(board, delta);
+        }
+    }
+
+    void save(std::ofstream& save_stream) {
+        for (auto &tuple : tuples) {
+            tuple->save(save_stream);
+        }
+    }
+
+    void load(std::ifstream& load_stream) {
+        for (auto &tuple : tuples) {
+            tuple->load(load_stream);
         }
     }
 

@@ -91,6 +91,10 @@ int main(int argc, const char *argv[]) {
         if(LEARNING) {
             player.Learn(game);
         }
+
+        if(stat.IsBackup()) {
+            player.save();
+        }
     }
 
     if (summary) {

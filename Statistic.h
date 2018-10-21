@@ -111,7 +111,13 @@ public:
 
 	void CloseEpisode(const std::string &flag = "") {
 		data_.back().CloseEpisode(flag);
-		if (count_ % block_ == 0) Show();
+		if (count_ % block_ == 0) {
+			Show();
+		}
+	}
+
+	bool IsBackup() {
+		return count_ % block_ == 0;
 	}
 
 	Episode& At(size_t i) {

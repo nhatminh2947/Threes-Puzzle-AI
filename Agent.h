@@ -339,64 +339,37 @@ private:
 class TdLearningPlayer : public Player {
 public:
     TdLearningPlayer(const std::string &args = "") : Player("name=TdLearning role=Player " + args),
-                                                     learning_rate(0.00025) {
-        tuple_network = NTupleNetwork();
+                                                     learning_rate_(0.025) {
         if (meta_.find("alpha") != meta_.end())
-            learning_rate = float(meta_["alpha"]);
+            learning_rate_ = float(meta_["alpha"]);
+
+        if (meta_.find("save") != meta_.end()) { // pass save=... to save to a specific file
+            file_name_ = meta_["save"].value;
+        }
     };
 
-    void load_weights(const std::string& path) {
-        std::ifstream in(path, std::ios::in | std::ios::binary);
-        if (!in.is_open()) std::exit(-1);
-        uint32_t size;
-        in.read(reinterpret_cast<char*>(&size), sizeof(size));
-//        net.resize(size);
-//        for (weight& w : net) in >> w;
-
-
-
-        in.close();
-    }
-
-    void save_weights(const std::string& path) {
-//        std::ofstream out(path, std::ios::out | std::ios::binary | std::ios::trunc);
-//        if (!out.is_open()) std::exit(-1);
-//        uint32_t size = net.size();
-//        out.write(reinterpret_cast<char*>(&size), sizeof(size));
-//        for (weight& w : net) out << w;
-//        out.close();
+    virtual ~TdLearningPlayer() {
+        if (meta_.find("save") != meta_.end()) { // pass save=... to save to a specific file
+            save();
+        }
     }
 
     void Learn(Episode episode) {
         std::vector<Episode::Move> moves = episode.GetMoves();
-
-//        std::cout << "Move size = " << moves.size() << std::endl;
-
-        //Training last state
-        Episode::Move state_t1 = moves.back();
-        Episode::Move state_t2 = moves.back();
-
-        board_t board_t1 = state_t1.board;
-        board_t board_t2 = state_t2.board;
-//        Board64::PrintBoard(board_t1);
-//        Board64::PrintBoard(board_t2);
-
-        double reward = Board64::GetBoardScore(board_t2) - Board64::GetBoardScore(board_t2);
-
-        tuple_network.UpdateValue(board_t1, learning_rate * (reward + V(board_t2) - V(board_t1)));
+        moves.push_back(moves.back());
 
         for (int i = moves.size() - 3; i >= 1; i -= 2) {
-            state_t1 = moves[i];
-            state_t2 = moves[i+2];
+            Episode::Move state_t1 = moves[i];
+            Episode::Move state_t2 = moves[i + 2];
 
-            board_t1 = state_t1.board;
-            board_t2 = state_t2.board;
+            board_t board_t1 = state_t1.board;
+            board_t board_t2 = state_t2.board;
 //            Board64::PrintBoard(board_t1);
 //            Board64::PrintBoard(board_t2);
 
-            reward = Board64::GetBoardScore(board_t2) - Board64::GetBoardScore(board_t1);
+            double reward = GetBoardScore(board_t2) - GetBoardScore(board_t1);
 
-            tuple_network.UpdateValue(board_t1, learning_rate * (reward + V(board_t2) - V(board_t1)));
+            tuple_network_.UpdateValue(board_t1, learning_rate_ * (reward + V(board_t2) - V(board_t1)));
         }
     }
 
@@ -414,7 +387,7 @@ public:
             temp_board.Slide(direction);
             if (temp_board == board) continue;
 
-            double score = Board64::GetBoardScore(temp_board.GetBoard()) + V(temp_board.GetBoard());
+            double score = (GetBoardScore(temp_board.GetBoard()) - GetBoardScore(board.GetBoard())) + V(temp_board.GetBoard());
 
             if (score > max_score) {
                 max_score = score;
@@ -430,10 +403,26 @@ public:
     }
 
     double V(board_t board) {
-        return tuple_network.GetValue(board);
+        return tuple_network_.GetValue(board);
+    }
+
+    void save() {
+        std::ofstream save_stream(file_name_.c_str(), std::ios::out | std::ios::binary);
+        if (!save_stream.is_open()) std::exit(-1);
+
+        tuple_network_.save(save_stream);
+        save_stream.close();
+    }
+
+    void load() {
+        std::ifstream load_stream(file_name_.c_str(), std::ios::in | std::ios::binary);
+        if (!load_stream.is_open()) std::exit(-1);
+
+        tuple_network_.load(load_stream);
     }
 
 private:
-    double learning_rate;
-    NTupleNetwork tuple_network;
+    double learning_rate_;
+    NTupleNetwork tuple_network_;
+    std::string file_name_;
 };
