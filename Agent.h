@@ -340,6 +340,11 @@ class TdLearningPlayer : public Player {
 public:
     TdLearningPlayer(const std::string &args = "") : Player("name=TdLearning role=Player " + args),
                                                      learning_rate_(0.025) {
+        if (meta_.find("load") != meta_.end()) {
+            std::string file_name = meta_["load"].value;
+            load(file_name);
+        }
+
         if (meta_.find("alpha") != meta_.end())
             learning_rate_ = float(meta_["alpha"]);
 
@@ -417,8 +422,8 @@ public:
         save_stream.close();
     }
 
-    void load() {
-        std::ifstream load_stream(file_name_.c_str(), std::ios::in | std::ios::binary);
+    void load(std::string file_name) {
+        std::ifstream load_stream(file_name.c_str(), std::ios::in | std::ios::binary);
         if (!load_stream.is_open()) std::exit(-1);
 
         tuple_network_.load(load_stream);

@@ -4,3 +4,6 @@
 threes
 CMakeLists.txt
 *.pdf
+nohup.out
+tdlearning.txt
+weights32.bin
