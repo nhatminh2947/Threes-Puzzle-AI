@@ -22,6 +22,7 @@ int main(int argc, const char *argv[]) {
     size_t total = 1000;
     size_t block = 0;
     size_t limit = 0;
+    bool learning = false;
 
     std::string play_args;
     std::string evil_args;
@@ -44,6 +45,8 @@ int main(int argc, const char *argv[]) {
             evil_args = para.substr(para.find("=") + 1);
         } else if (para.find("--load=") == 0) {
             load = para.substr(para.find("=") + 1);
+        } else if (para.find("--learn=") == 0) {
+            learning = true;
         } else if (para.find("--save=") == 0) {
             std::string s = para.substr(para.find("=") + 1);
             if(s == "epoch") {
@@ -88,7 +91,7 @@ int main(int argc, const char *argv[]) {
         player.CloseEpisode(win.name());
         evil.CloseEpisode(win.name());
 
-        if(LEARNING) {
+        if(learning) {
             player.Learn(game);
         }
 

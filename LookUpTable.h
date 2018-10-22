@@ -31,7 +31,6 @@ static float SCORE_MONOTONICITY_WEIGHT = 47.0f;
 static float SCORE_SUM_POWER = 3.5f;
 static float SCORE_SUM_WEIGHT = 11.0f;
 static float SCORE_MERGES_WEIGHT = 700.0f;
-static float SCORE_12_MERGES_WEIGHT = 0.0f;
 static float SCORE_EMPTY_WEIGHT = 270.0f;
 
 static board_t unpack_col(row_t row) {
@@ -68,7 +67,6 @@ void InitLookUpTables() {
         float sum = 0;
         int empty = 0;
         int merges = 0;
-        int onetwo_merges = 0;
 
         int prev = 0;
         int counter = 0;
@@ -90,11 +88,6 @@ void InitLookUpTables() {
         if (counter > 0) {
             merges += 1 + counter;
         }
-        for (int i = 1; i < 4; ++i) {
-            if ((line[i-1] == 1 && line[i] == 2) || (line[i-1] == 2 && line[i] == 1)) {
-                onetwo_merges++;
-            }
-        }
 
         float monotonicity_left = 0;
         float monotonicity_right = 0;
@@ -109,7 +102,6 @@ void InitLookUpTables() {
         heur_score_table[row] = SCORE_LOST_PENALTY
                                 + SCORE_EMPTY_WEIGHT * empty
                                 + SCORE_MERGES_WEIGHT * merges
-                                + SCORE_12_MERGES_WEIGHT * onetwo_merges
                                 - SCORE_MONOTONICITY_WEIGHT * std::min(monotonicity_left, monotonicity_right)
                                 - SCORE_SUM_WEIGHT * sum;
 
@@ -128,7 +120,6 @@ void InitLookUpTables() {
                 break;
             } else if(line[i] == line[i+1] && line[i] >= 3) {
                 if(line[i] != 15) {
-                    /* Pretend that 12288 + 12288 = 12288 */
                     line[i]++;
                 }
                 break;

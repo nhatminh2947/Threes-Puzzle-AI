@@ -71,7 +71,7 @@ public:
         return board_;
     }
 
-    board_t operator()(int i) {
+    int operator()(int i) {
         int row_id = i / 4;
         int col_id = i % 4;
 
@@ -81,7 +81,7 @@ public:
         return cell;
     }
 
-    const board_t operator()(int i) const {
+    const int operator()(int i) const {
         int row_id = i / 4;
         int col_id = i % 4;
 

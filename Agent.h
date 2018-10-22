@@ -339,7 +339,7 @@ private:
 class TdLearningPlayer : public Player {
 public:
     TdLearningPlayer(const std::string &args = "") : Player("name=TdLearning role=Player " + args),
-                                                     learning_rate_(0.025) {
+                                                     learning_rate_(0.1) {
         if (meta_.find("load") != meta_.end()) {
             std::string file_name = meta_["load"].value;
             load(file_name);
@@ -375,10 +375,14 @@ public:
 //            Board64::PrintBoard(board_t1);
 //            Board64::PrintBoard(board_t2);
 
-            double reward = GetBoardScore(board_t2) - GetBoardScore(board_t1);
+            double reward = GetReward(board_t1, board_t2);
 
             tuple_network_.UpdateValue(board_t1, learning_rate_ * (reward + V(board_t2) - V(board_t1)));
         }
+    }
+
+    double GetReward(board_t board_t1, board_t board_t2) {
+        return GetBoardScore(board_t2) - GetBoardScore(board_t1);
     }
 
     Action TakeAction(const Board64 &board, const Action &evil_action) override {
