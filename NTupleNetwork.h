@@ -208,82 +208,40 @@ private:
     std::array<std::array<double, SIX_TUPLE_MASK + 1>, 2> lookup_table_;
 };
 
-class HeuristicTuple : public Tuple {
+class ValueTileTuple : public Tuple {
 public:
-    HeuristicTuple() {
+    ValueTileTuple() {
         std::fill(lookup_table_.begin(), lookup_table_.end(), 0);
     }
 
     board_t GetIndex(board_t board, int id) override {
         Board64 b(board);
 
-        bool distinct_check[16];
-        std::fill(distinct_check, distinct_check+16, false);
-//        Board64::PrintBoard(board);
-        int empty = 0;
-        int merges = 0;
-        int max_tile = INT32_MIN;
-        int distinct_tile = 0;
-
+        int count_tile[15];
+        std::fill(count_tile, count_tile+15, 0);
 
         for (int i = 0; i < 16; ++i) {
-            if (b(i) == 0) empty++;
-            if (i + 1 < 4 && b(i) == b(i + 1)) merges++;
-            if (i + 4 < 16 && b(i) == b(i + 4)) merges++;
-            if (max_tile < b(i)) max_tile = b(i);
-            if (!distinct_check[b(i)]) {
-                distinct_tile++;
-                distinct_check[b(i)] = true;
-            }
+            count_tile[b(i)]++;
         }
 
-        board_t index = empty | merges << 4 | max_tile << 12 | distinct_tile << 16;
+        board_t index = 0;
+        int p = 1;
+        for (int i = 0; i < 5; i++) {
+            index += count_tile[i + 10] * p;
+            p *= 5;
+        }
 
         return index;
     }
 
     void UpdateValue(board_t board, double delta) override {
-        Board64 b(board);
-
-        for (int i = 0; i < 4; ++i) {
-            for (int j = 0; j < 2; j++) {
-                Board64 temp_board(b.GetBoard());
-
-                board_t index1 = GetIndex(temp_board.GetBoard(), 0);
-                lookup_table_[index1] += delta;
-
-                temp_board.ReflectVertical();
-
-                board_t index2 = GetIndex(temp_board.GetBoard(), 0);
-                if(j == 1 && index1 != index2) {
-                    lookup_table_[index2] += delta;
-                }
-            }
-            b.TurnRight();
-        }
+        lookup_table_[GetIndex(board,0)] += delta;
     }
 
     double GetValue(board_t board) override {
         double total_value = 0.0;
 
-        Board64 b(board);
-
-        for (int i = 0; i < 4; ++i) {
-            for (int j = 0; j < 2; ++j) {
-                Board64 temp_board(b.GetBoard());
-
-                board_t index1 = GetIndex(temp_board.GetBoard(), 0);
-                total_value += lookup_table_[index1];
-
-                temp_board.ReflectVertical();
-
-                board_t index2 = GetIndex(temp_board.GetBoard(), 0);
-                total_value += lookup_table_[index2];
-            }
-            b.TurnRight();
-        }
-
-        return total_value;
+        return lookup_table_[GetIndex(board,0)];
     }
 
     void save(std::ofstream& out) override {
@@ -295,7 +253,44 @@ public:
     }
 
 private:
-    std::array<double, SIX_TUPLE_MASK + 1> lookup_table_;
+    std::array<double, 3126> lookup_table_; // (10-tile,11-tile,12-tile,13-tile,14-tile)
+};
+
+class EmptyTileTuple : public Tuple {
+public:
+    ValueTileTuple() {
+        std::fill(lookup_table_.begin(), lookup_table_.end(), 0);
+    }
+
+    board_t GetIndex(board_t board, int id) override {
+        Board64 b(board);
+        board_t index = 0;
+
+        for (int i = 0; i < 16; ++i) {
+            index += (b(i) == 0);
+        }
+
+        return index;
+    }
+
+    void UpdateValue(board_t board, double delta) override {
+        lookup_table_[GetIndex(board,0)] += delta;
+    }
+
+    double GetValue(board_t board) override {
+        return lookup_table_[GetIndex(board,0)];
+    }
+
+    void save(std::ofstream& out) override {
+        out.write(reinterpret_cast<char*>(&lookup_table_), (SIX_TUPLE_MASK+1)*sizeof(double));
+    }
+
+    void load(std::ifstream& in) override {
+        in.read(reinterpret_cast<char*>(&lookup_table_), (SIX_TUPLE_MASK+1) * sizeof(double));
+    }
+
+private:
+    std::array<double, 16> lookup_table_;
 };
 
 class NTupleNetwork {
@@ -304,7 +299,7 @@ public:
     NTupleNetwork() {
         tuples.emplace_back(new AxeTuple());
         tuples.emplace_back(new RectangleTuple());
-//        tuples.emplace_back(new HeuristicTuple());
+        tuples.emplace_back(new ValueTileTuple());
     }
 
     double GetValue(board_t board) {
