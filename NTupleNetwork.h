@@ -32,8 +32,8 @@ public:
 class AxeTuple : public Tuple {
 public:
     AxeTuple() : Tuple() {
-        std::fill(lookup_table[0].begin(), lookup_table[0].end(), 0);
-        std::fill(lookup_table[1].begin(), lookup_table[1].end(), 0);
+        std::fill(lookup_table_[0].begin(), lookup_table_[0].end(), 0);
+        std::fill(lookup_table_[1].begin(), lookup_table_[1].end(), 0);
     }
 
     board_t GetIndex(board_t board, int id) override {
@@ -54,12 +54,12 @@ public:
                 Board64 temp_board(b.GetBoard());
 
                 board_t index = GetIndex(temp_board.GetBoard(), j);
-                lookup_table[j][index] += delta;
+                lookup_table_[j][index] += delta;
 
                 temp_board.ReflectVertical();
 
                 index = GetIndex(temp_board.GetBoard(), j);
-                lookup_table[j][index] += delta;
+                lookup_table_[j][index] += delta;
             }
             b.TurnRight();
         }
@@ -75,12 +75,12 @@ public:
                 Board64 temp_board(b.GetBoard());
 
                 board_t index = GetIndex(temp_board.GetBoard(), j);
-                total_value += lookup_table[j][index];
+                total_value += lookup_table_[j][index];
 
                 temp_board.ReflectVertical();
 
                 index = GetIndex(temp_board.GetBoard(), j);
-                total_value += lookup_table[j][index];
+                total_value += lookup_table_[j][index];
             }
             b.TurnRight();
         }
@@ -89,18 +89,31 @@ public:
     }
 
     void save(std::ofstream& out) override {
-        out.write(reinterpret_cast<char*>(&lookup_table[0]), (SIX_TUPLE_MASK+1)*sizeof(double));
-        out.write(reinterpret_cast<char*>(&lookup_table[1]), (SIX_TUPLE_MASK+1)*sizeof(double));
+        for (int i = 0; i < 2; ++i) {
+            out << lookup_table_[i].size();
+            for (double w : lookup_table_[i]) {
+                out << " " << w;
+            }
+            out << std::endl;
+        }
+//        out.write(reinterpret_cast<char*>(&lookup_table_[0]), (SIX_TUPLE_MASK+1)*sizeof(double));
+//        out.write(reinterpret_cast<char*>(&lookup_table_[1]), (SIX_TUPLE_MASK+1)*sizeof(double));
     }
 
     void load(std::ifstream& in) override {
-        in.read(reinterpret_cast<char*>(&lookup_table[0]), (SIX_TUPLE_MASK+1) * sizeof(double));
-        in.read(reinterpret_cast<char*>(&lookup_table[1]), (SIX_TUPLE_MASK+1) * sizeof(double));
+        for (int i = 0; i < 2; ++i) {
+            int size = 0;
+            in >> size;
+            for (int j = 0; j < size; ++j) {
+                in >> lookup_table_[i][j];
+            }
+        }
+//        in.read(reinterpret_cast<char*>(&lookup_table_[0]), (SIX_TUPLE_MASK+1) * sizeof(double));
+//        in.read(reinterpret_cast<char*>(&lookup_table_[1]), (SIX_TUPLE_MASK+1) * sizeof(double));
     }
 
-
 private:
-    std::array<std::array<double, SIX_TUPLE_MASK + 1>, 2> lookup_table;
+    std::array<std::array<double, SIX_TUPLE_MASK + 1>, 2> lookup_table_;
 };
 
 class RectangleTuple : public Tuple {
@@ -167,13 +180,27 @@ public:
     }
 
     void save(std::ofstream& out) override {
-        out.write(reinterpret_cast<char*>(&lookup_table_[0]), (SIX_TUPLE_MASK+1)*sizeof(double));
-        out.write(reinterpret_cast<char*>(&lookup_table_[1]), (SIX_TUPLE_MASK+1)*sizeof(double));
+        for (int i = 0; i < 2; ++i) {
+            out << lookup_table_[i].size();
+            for (double w : lookup_table_[i]) {
+                out << " " << w;
+            }
+            out << std::endl;
+        }
+//        out.write(reinterpret_cast<char*>(&lookup_table_[0]), (SIX_TUPLE_MASK+1)*sizeof(double));
+//        out.write(reinterpret_cast<char*>(&lookup_table_[1]), (SIX_TUPLE_MASK+1)*sizeof(double));
     }
 
     void load(std::ifstream& in) override {
-        in.read(reinterpret_cast<char*>(&lookup_table_[0]), (SIX_TUPLE_MASK+1) * sizeof(double));
-        in.read(reinterpret_cast<char*>(&lookup_table_[1]), (SIX_TUPLE_MASK+1) * sizeof(double));
+        for (int i = 0; i < 2; ++i) {
+            int size = 0;
+            in >> size;
+            for (int j = 0; j < size; ++j) {
+                in >> lookup_table_[i][j];
+            }
+        }
+//        in.read(reinterpret_cast<char*>(&lookup_table_[0]), (SIX_TUPLE_MASK+1) * sizeof(double));
+//        in.read(reinterpret_cast<char*>(&lookup_table_[1]), (SIX_TUPLE_MASK+1) * sizeof(double));
     }
 
 
@@ -277,7 +304,7 @@ public:
     NTupleNetwork() {
         tuples.emplace_back(new AxeTuple());
         tuples.emplace_back(new RectangleTuple());
-        tuples.emplace_back(new HeuristicTuple());
+//        tuples.emplace_back(new HeuristicTuple());
     }
 
     double GetValue(board_t board) {

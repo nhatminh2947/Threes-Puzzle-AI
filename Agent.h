@@ -419,7 +419,7 @@ public:
     }
 
     void save() {
-        std::ofstream save_stream(file_name_.c_str(), std::ios::out | std::ios::binary);
+        std::ofstream save_stream(file_name_.c_str(), std::ios::out | std::ios::trunc);
         if (!save_stream.is_open()) std::exit(-1);
 
         tuple_network_.save(save_stream);
@@ -427,7 +427,7 @@ public:
     }
 
     void load(std::string file_name) {
-        std::ifstream load_stream(file_name.c_str(), std::ios::in | std::ios::binary);
+        std::ifstream load_stream(file_name.c_str());
         if (!load_stream.is_open()) std::exit(-1);
 
         tuple_network_.load(load_stream);
