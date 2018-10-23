@@ -245,11 +245,19 @@ public:
     }
 
     void save(std::ofstream& out) override {
-        out.write(reinterpret_cast<char*>(&lookup_table_), (SIX_TUPLE_MASK+1)*sizeof(double));
+        out << lookup_table_.size();
+        for (double w : lookup_table_) {
+            out << " " << w;
+        }
+        out << std::endl;
     }
 
     void load(std::ifstream& in) override {
-        in.read(reinterpret_cast<char*>(&lookup_table_), (SIX_TUPLE_MASK+1) * sizeof(double));
+        int size = 0;
+        in >> size;
+        for (int j = 0; j < size; ++j) {
+            in >> lookup_table_[j];
+        }
     }
 
 private:
@@ -258,7 +266,7 @@ private:
 
 class EmptyTileTuple : public Tuple {
 public:
-    ValueTileTuple() {
+    EmptyTileTuple() {
         std::fill(lookup_table_.begin(), lookup_table_.end(), 0);
     }
 
@@ -282,11 +290,19 @@ public:
     }
 
     void save(std::ofstream& out) override {
-        out.write(reinterpret_cast<char*>(&lookup_table_), (SIX_TUPLE_MASK+1)*sizeof(double));
+        out << lookup_table_.size();
+        for (double w : lookup_table_) {
+            out << " " << w;
+        }
+        out << std::endl;
     }
 
     void load(std::ifstream& in) override {
-        in.read(reinterpret_cast<char*>(&lookup_table_), (SIX_TUPLE_MASK+1) * sizeof(double));
+        int size = 0;
+        in >> size;
+        for (int j = 0; j < size; ++j) {
+            in >> lookup_table_[j];
+        }
     }
 
 private:
@@ -300,6 +316,7 @@ public:
         tuples.emplace_back(new AxeTuple());
         tuples.emplace_back(new RectangleTuple());
         tuples.emplace_back(new ValueTileTuple());
+        tuples.emplace_back(new EmptyTileTuple());
     }
 
     double GetValue(board_t board) {
