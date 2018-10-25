@@ -353,16 +353,11 @@ public:
         }
     };
 
-    virtual ~TdLearningPlayer() {
-        if (meta_.find("save") != meta_.end()) { // pass save=... to save to a specific file
-            save();
-        }
-    }
-
-    void Learn(const Episode &episode) {
+    void Learn(const Episode &episode, int stage) {
         std::vector<Episode::Move> moves = episode.GetMoves();
         moves.push_back(moves.back());
 
+//        tuple_network_.AddFeaturesForStage(stage);
         //Update last state
         tuple_network_.UpdateValue(moves.back().board, learning_rate_ * (0 - V(moves.back().board)));
 
@@ -418,8 +413,11 @@ public:
         return tuple_network_.GetValue(board);
     }
 
-    void save() {
-        std::ofstream save_stream(file_name_.c_str(), std::ios::out | std::ios::trunc);
+    void save(int stage) {
+        std::string str_stage = "-stage" + std::to_string(stage);
+        std::string file_name = file_name_;
+        file_name.insert(file_name.size() - 4, str_stage);
+        std::ofstream save_stream(file_name.c_str(), std::ios::out | std::ios::trunc);
         if (!save_stream.is_open()) std::exit(-1);
 
         tuple_network_.save(save_stream);

@@ -92,11 +92,11 @@ int main(int argc, const char *argv[]) {
         evil.CloseEpisode(win.name());
 
         if(learning) {
-            player.Learn(game);
-        }
+            player.Learn(game, (stat.GetCount() - 1) / 5000000);
 
-        if(stat.IsBackup()) {
-            player.save();
+            if(stat.IsBackup()) {
+                player.save((stat.GetCount() - 1) / 5000000);
+            }
         }
     }
 

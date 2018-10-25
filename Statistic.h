@@ -120,6 +120,10 @@ public:
 		return count_ % block_ == 0;
 	}
 
+	size_t GetCount() {
+	    return count_;
+	}
+
 	Episode& At(size_t i) {
 		auto it = data_.begin();
 		while (i--) it++;

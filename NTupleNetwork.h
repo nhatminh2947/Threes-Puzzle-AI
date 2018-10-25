@@ -208,9 +208,9 @@ private:
     std::array<std::array<double, SIX_TUPLE_MASK + 1>, 2> lookup_table_;
 };
 
-class ValueTileTuple : public Tuple {
+class ValuableTileTuple : public Tuple {
 public:
-    ValueTileTuple() {
+    ValuableTileTuple() {
         std::fill(lookup_table_.begin(), lookup_table_.end(), 0);
     }
 
@@ -228,7 +228,7 @@ public:
         int p = 1;
         for (int i = 0; i < 5; i++) {
             index += count_tile[i + 10] * p;
-            p *= 5;
+            p *= 8;
         }
 
         return index;
@@ -261,7 +261,7 @@ public:
     }
 
 private:
-    std::array<double, 3126> lookup_table_; // (10-tile,11-tile,12-tile,13-tile,14-tile)
+    std::array<double, 32769> lookup_table_; // (10-tile, 11-tile, 12-tile, 13-tile, 14-tile)
 };
 
 class EmptyTileTuple : public Tuple {
@@ -306,18 +306,191 @@ public:
     }
 
 private:
-    std::array<double, 16> lookup_table_;
+    std::array<double, 17> lookup_table_;
+};
+
+class DistinctTilesTuple : public Tuple {
+public:
+    DistinctTilesTuple() {
+        std::fill(lookup_table_.begin(), lookup_table_.end(), 0);
+    }
+
+    board_t GetIndex(board_t board, int id) override {
+        Board64 b(board);
+        board_t index = 0;
+
+        for (int i = 0; i < 16; ++i) {
+            index |= (1 << b(i));
+        }
+
+        return index;
+    }
+
+    void UpdateValue(board_t board, double delta) override {
+        lookup_table_[GetIndex(board,0)] += delta;
+    }
+
+    double GetValue(board_t board) override {
+        return lookup_table_[GetIndex(board,0)];
+    }
+
+    void save(std::ofstream& out) override {
+        out << lookup_table_.size();
+        for (double w : lookup_table_) {
+            out << " " << w;
+        }
+        out << std::endl;
+    }
+
+    void load(std::ifstream& in) override {
+        int size = 0;
+        in >> size;
+        for (int j = 0; j < size; ++j) {
+            in >> lookup_table_[j];
+        }
+    }
+
+private:
+    std::array<double, 32769> lookup_table_;
+};
+
+class MergeableTilesTuple : public Tuple {
+public:
+    MergeableTilesTuple() {
+        std::fill(lookup_table_.begin(), lookup_table_.end(), 0);
+    }
+
+    board_t GetIndex(board_t board, int id) override {
+        Board64 b(board);
+        board_t index = 0;
+
+        for (int i = 0; i < 16; ++i) {
+            if(b(i) == 0) continue;
+
+            if((i + 1) % 4 != 0 && b(i) == b(i+1)) {
+                index++;
+            }
+            if((i + 4) / 4 < 4 && b(i) == b(i+4)) {
+                index++;
+            }
+        }
+
+        return index;
+    }
+
+    void UpdateValue(board_t board, double delta) override {
+        lookup_table_[GetIndex(board,0)] += delta;
+    }
+
+    double GetValue(board_t board) override {
+        return lookup_table_[GetIndex(board,0)];
+    }
+
+    void save(std::ofstream& out) override {
+        out << lookup_table_.size();
+        for (double w : lookup_table_) {
+            out << " " << w;
+        }
+        out << std::endl;
+    }
+
+    void load(std::ifstream& in) override {
+        int size = 0;
+        in >> size;
+        for (int j = 0; j < size; ++j) {
+            in >> lookup_table_[j];
+        }
+    }
+
+private:
+    std::array<double, 17> lookup_table_;
+};
+
+class NeighboringVTile : public Tuple {
+public:
+    NeighboringVTile() {
+        std::fill(lookup_table_.begin(), lookup_table_.end(), 0);
+    }
+
+    board_t GetIndex(board_t board, int id) override {
+        Board64 b(board);
+        board_t index = 0;
+
+        for (int i = 0; i < 16; ++i) {
+            if(b(i) < 10) continue;
+
+            if((i + 1) % 4 != 0 && 2 * b(i) == b(i+1)) {
+                index++;
+            }
+            if((i + 4) / 4 < 4 && 2 * b(i) == b(i+4)) {
+                index++;
+            }
+        }
+
+        return index;
+    }
+
+    void UpdateValue(board_t board, double delta) override {
+        lookup_table_[GetIndex(board,0)] += delta;
+    }
+
+    double GetValue(board_t board) override {
+        return lookup_table_[GetIndex(board,0)];
+    }
+
+    void save(std::ofstream& out) override {
+        out << lookup_table_.size();
+        for (double w : lookup_table_) {
+            out << " " << w;
+        }
+        out << std::endl;
+    }
+
+    void load(std::ifstream& in) override {
+        int size = 0;
+        in >> size;
+        for (int j = 0; j < size; ++j) {
+            in >> lookup_table_[j];
+        }
+    }
+
+private:
+    std::array<double, 17> lookup_table_;
 };
 
 class NTupleNetwork {
 
 public:
     NTupleNetwork() {
+        stage_ = 0;
         tuples.emplace_back(new AxeTuple());
         tuples.emplace_back(new RectangleTuple());
-        tuples.emplace_back(new ValueTileTuple());
+        tuples.emplace_back(new ValuableTileTuple());
+        tuples.emplace_back(new DistinctTilesTuple());
+        tuples.emplace_back(new MergeableTilesTuple());
         tuples.emplace_back(new EmptyTileTuple());
+        tuples.emplace_back(new NeighboringVTile());
     }
+
+//    void AddFeaturesForStage(int stage) {
+//        return;
+//        if(stage == stage_) return;
+//
+//        stage_ = stage;
+//
+//        switch (stage_) {
+//            case 1:
+//                tuples.emplace_back(new DistinctTilesTuple());
+//                tuples.emplace_back(new MergeableTilesTuple());
+//                tuples.emplace_back(new EmptyTileTuple());
+//                break;
+//            case 2:
+//                tuples.emplace_back(new NeighboringVTile());
+//                break;
+//            default:
+//                break;
+//        }
+//    }
 
     double GetValue(board_t board) {
         double total_value = 0;
@@ -348,6 +521,7 @@ public:
     }
 
 private:
+    int stage_;
     std::vector<std::unique_ptr<Tuple>> tuples;
 };
 
