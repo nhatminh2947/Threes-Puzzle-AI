@@ -339,14 +339,14 @@ private:
 class TdLearningPlayer : public Player {
 public:
     TdLearningPlayer(const std::string &args = "") : Player("name=TdLearning role=Player " + args),
-                                                     learning_rate_(0.1) {
+                                                     learning_rate_(0.0025) {
         if (meta_.find("load") != meta_.end()) {
             std::string file_name = meta_["load"].value;
             load(file_name);
         }
 
         if (meta_.find("alpha") != meta_.end())
-            learning_rate_ = float(meta_["alpha"]);
+            learning_rate_ = double(meta_["alpha"]);
 
         if (meta_.find("save") != meta_.end()) { // pass save=... to save to a specific file
             file_name_ = meta_["save"].value;
@@ -374,6 +374,11 @@ public:
 
             tuple_network_.UpdateValue(board_t1, learning_rate_ * (reward + V(board_t2) - V(board_t1)));
         }
+    }
+
+    void DecreaseLearningRate10Times() {
+        learning_rate_ /= 10;
+        file_name_.insert(file_name_.size() - 4, "0.00025");
     }
 
     double GetReward(board_t board_t1, board_t board_t2) {
@@ -417,7 +422,7 @@ public:
         std::string str_stage = "-stage" + std::to_string(stage);
         std::string file_name = file_name_;
         file_name.insert(file_name.size() - 4, str_stage);
-        std::ofstream save_stream(file_name.c_str(), std::ios::out | std::ios::trunc);
+        std::ofstream save_stream(file_name_.c_str(), std::ios::out | std::ios::trunc);
         if (!save_stream.is_open()) std::exit(-1);
 
         tuple_network_.save(save_stream);

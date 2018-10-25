@@ -97,6 +97,10 @@ int main(int argc, const char *argv[]) {
             if(stat.IsBackup()) {
                 player.save((stat.GetCount() - 1) / 5000000);
             }
+
+            if(stat.GetCount() % 5000000 == 0) {
+                player.DecreaseLearningRate10Times();
+            }
         }
     }
 
