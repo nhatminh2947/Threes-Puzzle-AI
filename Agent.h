@@ -339,8 +339,13 @@ private:
 class TdLearningPlayer : public Player {
 public:
     TdLearningPlayer(const std::string &args = "") : Player("name=TdLearning role=Player " + args),
-                                                     learning_rate_(0.0025), board_appears_3072_1536(0), board_appears_3072(0),
-                                                     count_after_3072_1536_game(0), tuple_id_(0) {
+                                                     learning_rate_(0.0025), board_appears_3072_(0), tuple_id_(0),
+                                                     board_appears_1536_(0), count_after_192_92_game_(0),
+                                                     tuple_size_(4) {
+
+        tuple_network_ = std::vector<NTupleNetwork>(tuple_size_);
+        file_name_ = std::vector<std::string>(tuple_size_);
+
         if (meta_.find("load") != meta_.end()) {
             std::string file_name = meta_["load"].value;
             load(file_name);
@@ -352,7 +357,7 @@ public:
         if (meta_.find("save") != meta_.end()) { // pass save=... to save to a specific file
             std::string file_name = meta_["save"].value;
 
-            for (int i = 0; i < 3; ++i) {
+            for (int i = 0; i < tuple_size_; ++i) {
                 file_name_[i] = file_name.insert(file_name.size() - 4, std::to_string(i));
             }
         }
@@ -360,8 +365,9 @@ public:
 
     void Reset() {
         tuple_id_ = 0;
-        board_appears_3072 = 0;
-        board_appears_3072_1536 = 0;
+        board_appears_1536_ = 0;
+        board_appears_3072_ = 0;
+        board_appears_192_92_ = 0;
     }
 
     void Learn(const Episode &episode) {
@@ -381,12 +387,18 @@ public:
 
             tuple_network_[tuple_id_].UpdateValue(board_t1, learning_rate_ * (reward + V(board_t2) - V(board_t1)));
 
-            if((tuple_id_ == 2 && board_t1 == board_appears_3072_1536) || (tuple_id_ == 1 && board_t1 == board_appears_3072)) {
+            if ((tuple_id_ == 3 && board_t1 == board_appears_3072_) ||
+                (tuple_id_ == 2 && board_t1 == board_appears_1536_) ||
+                (tuple_id_ == 1 && board_t1 == board_appears_192_92_)) {
                 tuple_id_--;
+
+                if (TrainingFinished(tuple_id_)) {
+                    break;
+                }
             }
         }
 
-        if(tuple_id_ < 0) {
+        if (tuple_id_ < 0) {
             std::exit(-1);
         }
 
@@ -404,7 +416,7 @@ public:
 
     bool FindTile(Board64 board, int tile) {
         for (int i = 0; i < 16; ++i) {
-            if(tile == board(i)) {
+            if (tile == board(i)) {
                 return true;
             }
         }
@@ -412,19 +424,36 @@ public:
         return false;
     }
 
-    bool TrainingFinished() {
-        return (count_after_3072_1536_game < 5000000);
+    bool TrainingFinished(int stage, int limit = 5000000) {
+        switch (stage) {
+            case 1:
+                return count_after_192_92_game_ >= limit;
+            case 2:
+                return count_after_1536_game_ >= limit;
+            case 3:
+                return count_after_3072_game_ >= limit;
+            default:
+                return false;
+        }
     }
 
     Action TakeAction(const Board64 &board, const Action &evil_action) override {
-        if(tuple_id_ != 2 && FindTile(board, 13)) {
+        if (tuple_id_ < 1 && FindTile(board, 9) && FindTile(board, 8)) {
             tuple_id_ = 1;
+            count_after_192_92_game_++;
+            board_appears_192_92_ = board.GetBoard();
+        }
 
-            if(FindTile(board, 12)) {
-                tuple_id_ = 2;
+        if (tuple_id_ < 2 && FindTile(board, 12)) {
+            tuple_id_ = 2;
+            count_after_1536_game_++;
+            board_appears_1536_ = board.GetBoard();
+        }
 
-                count_after_3072_1536_game++;
-            }
+        if (tuple_id_ < 3 && FindTile(board, 13)) {
+            tuple_id_ = 3;
+            count_after_3072_game_++;
+            board_appears_3072_ = board.GetBoard();
         }
 
         return Policy(board);
@@ -461,7 +490,7 @@ public:
     }
 
     void save() {
-        for (int i = 0; i < 3; ++i) {
+        for (int i = 0; i < tuple_size_; ++i) {
             std::ofstream save_stream(file_name_[i].c_str(), std::ios::out | std::ios::trunc);
             if (!save_stream.is_open()) std::exit(-1);
 
@@ -471,7 +500,7 @@ public:
     }
 
     void load(std::string file_name) {
-        for (int i = 0; i < 3; ++i) {
+        for (int i = 0; i < tuple_size_; ++i) {
             std::string fn = file_name;
             fn.insert(fn.size() - 4, std::to_string(i));
 
@@ -485,10 +514,14 @@ public:
 
 private:
     int tuple_id_;
-    board_t board_appears_3072;
-    board_t board_appears_3072_1536;
-    size_t count_after_3072_1536_game;
+    int tuple_size_;
+    board_t board_appears_1536_;
+    board_t board_appears_3072_;
+    board_t board_appears_192_92_;
+    size_t count_after_3072_game_;
+    size_t count_after_1536_game_;
+    size_t count_after_192_92_game_;
     double learning_rate_;
-    std::string file_name_[3];
-    NTupleNetwork tuple_network_[3];
+    std::vector<std::string> file_name_;
+    std::vector<NTupleNetwork> tuple_network_;
 };

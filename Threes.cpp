@@ -71,7 +71,7 @@ int main(int argc, const char *argv[]) {
     RandomEnvironment evil(evil_args);
 
 //    while (!stat.IsFinished()) {
-    while (player.TrainingFinished()) {
+    while (!player.TrainingFinished(3)) {
         player.OpenEpisode("~:" + evil.name());
         evil.OpenEpisode(player.name() + ":~");
 
@@ -97,10 +97,6 @@ int main(int argc, const char *argv[]) {
             if (stat.IsBackup()) {
                 player.save();
             }
-//
-//            if(stat.GetCount() % 10 == 0) {
-//                std::cout << stat.GetCount() << std::endl;
-//            }
         }
     }
 
