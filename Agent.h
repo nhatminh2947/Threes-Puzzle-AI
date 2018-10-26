@@ -353,11 +353,10 @@ public:
         }
     };
 
-    void Learn(const Episode &episode, int stage) {
+    void Learn(const Episode &episode) {
         std::vector<Episode::Move> moves = episode.GetMoves();
         moves.push_back(moves.back());
 
-//        tuple_network_.AddFeaturesForStage(stage);
         //Update last state
         tuple_network_.UpdateValue(moves.back().board, learning_rate_ * (0 - V(moves.back().board)));
 
@@ -367,8 +366,6 @@ public:
 
             board_t board_t1 = state_t1.board;
             board_t board_t2 = state_t2.board;
-//            Board64::PrintBoard(board_t1);
-//            Board64::PrintBoard(board_t2);
 
             double reward = GetReward(board_t1, board_t2);
 
@@ -418,10 +415,7 @@ public:
         return tuple_network_.GetValue(board);
     }
 
-    void save(int stage) {
-        std::string str_stage = "-stage" + std::to_string(stage);
-        std::string file_name = file_name_;
-        file_name.insert(file_name.size() - 4, str_stage);
+    void save() {
         std::ofstream save_stream(file_name_.c_str(), std::ios::out | std::ios::trunc);
         if (!save_stream.is_open()) std::exit(-1);
 
@@ -429,7 +423,7 @@ public:
         save_stream.close();
     }
 
-    void load(std::string file_name) {
+    void load(const std::string file_name) {
         std::ifstream load_stream(file_name.c_str());
         if (!load_stream.is_open()) std::exit(-1);
 
