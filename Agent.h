@@ -340,7 +340,7 @@ class TdLearningPlayer : public Player {
 public:
     TdLearningPlayer(const std::string &args = "") : Player("name=TdLearning role=Player " + args),
                                                      learning_rate_(0.0025), board_appears_3072_(0), tuple_id_(0),
-                                                     board_appears_1536_(0), count_after_192_92_game_(0),
+                                                     board_appears_1536_(0), count_after_384_game_(0),
                                                      tuple_size_(4) {
 
         tuple_network_ = std::vector<NTupleNetwork>(tuple_size_);
@@ -367,7 +367,7 @@ public:
         tuple_id_ = 0;
         board_appears_1536_ = 0;
         board_appears_3072_ = 0;
-        board_appears_192_92_ = 0;
+        board_appears_384_ = 0;
     }
 
     void Learn(const Episode &episode) {
@@ -389,7 +389,7 @@ public:
 
             if ((tuple_id_ == 3 && board_t1 == board_appears_3072_) ||
                 (tuple_id_ == 2 && board_t1 == board_appears_1536_) ||
-                (tuple_id_ == 1 && board_t1 == board_appears_192_92_)) {
+                (tuple_id_ == 1 && board_t1 == board_appears_384_)) {
                 tuple_id_--;
 
                 if (TrainingFinished(tuple_id_)) {
@@ -427,7 +427,7 @@ public:
     bool TrainingFinished(int stage, int limit = 5000000) {
         switch (stage) {
             case 1:
-                return count_after_192_92_game_ >= limit;
+                return count_after_384_game_ >= limit;
             case 2:
                 return count_after_1536_game_ >= limit;
             case 3:
@@ -438,10 +438,10 @@ public:
     }
 
     Action TakeAction(const Board64 &board, const Action &evil_action) override {
-        if (tuple_id_ < 1 && FindTile(board, 9) && FindTile(board, 8)) {
+        if (tuple_id_ < 1 && FindTile(board, 10)) {
             tuple_id_ = 1;
-            count_after_192_92_game_++;
-            board_appears_192_92_ = board.GetBoard();
+            count_after_384_game_++;
+            board_appears_384_ = board.GetBoard();
         }
 
         if (tuple_id_ < 2 && FindTile(board, 12)) {
@@ -491,6 +491,9 @@ public:
 
     void save() {
         for (int i = 0; i < tuple_size_; ++i) {
+            if(TrainingFinished(0)) {
+                continue;
+            }
             std::ofstream save_stream(file_name_[i].c_str(), std::ios::out | std::ios::trunc);
             if (!save_stream.is_open()) std::exit(-1);
 
@@ -517,10 +520,10 @@ private:
     int tuple_size_;
     board_t board_appears_1536_;
     board_t board_appears_3072_;
-    board_t board_appears_192_92_;
+    board_t board_appears_384_;
     size_t count_after_3072_game_;
     size_t count_after_1536_game_;
-    size_t count_after_192_92_game_;
+    size_t count_after_384_game_;
     double learning_rate_;
     std::vector<std::string> file_name_;
     std::vector<NTupleNetwork> tuple_network_;
