@@ -49,10 +49,9 @@ int main(int argc, const char *argv[]) {
             learning = true;
         } else if (para.find("--save=") == 0) {
             std::string s = para.substr(para.find("=") + 1);
-            if(s == "epoch") {
+            if (s == "epoch") {
                 save = "../results/" + std::to_string(std::time(nullptr));
-            }
-            else save = s;
+            } else save = s;
         } else if (para.find("--summary") == 0) {
             summary = true;
         }
@@ -71,7 +70,8 @@ int main(int argc, const char *argv[]) {
 //    ExpectimaxPlayer player(play_args, 3);
     RandomEnvironment evil(evil_args);
 
-    while (!stat.IsFinished()) {
+//    while (!stat.IsFinished()) {
+    while (player.TrainingFinished()) {
         player.OpenEpisode("~:" + evil.name());
         evil.OpenEpisode(player.name() + ":~");
 
@@ -91,16 +91,16 @@ int main(int argc, const char *argv[]) {
         player.CloseEpisode(win.name());
         evil.CloseEpisode(win.name());
 
-        if(learning) {
-            player.Learn(game, (stat.GetCount() - 1) / 5000000);
+        if (learning) {
+            player.Learn(game);
 
-            if(stat.IsBackup()) {
-                player.save((stat.GetCount() - 1) / 5000000);
+            if (stat.IsBackup()) {
+                player.save();
             }
-
-            if(stat.GetCount() % 5000000 == 0) {
-                player.DecreaseLearningRate10Times();
-            }
+//
+//            if(stat.GetCount() % 10 == 0) {
+//                std::cout << stat.GetCount() << std::endl;
+//            }
         }
     }
 
