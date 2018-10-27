@@ -71,7 +71,7 @@ int main(int argc, const char *argv[]) {
     RandomEnvironment evil(evil_args);
 
 //    while (!stat.IsFinished()) {
-    while (player.TrainingFinished()) {
+    while (!player.TrainingFinished(2)) {
         player.OpenEpisode("~:" + evil.name());
         evil.OpenEpisode(player.name() + ":~");
 

@@ -71,6 +71,10 @@ public:
         return board_;
     }
 
+    board_t GetBoard() const {
+        return board_;
+    }
+
     int operator()(int i) {
         int row_id = i / 4;
         int col_id = i % 4;
