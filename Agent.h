@@ -375,7 +375,7 @@ public:
 
     void DecreaseLearningRate10Times() {
         learning_rate_ /= 10;
-        file_name_.insert(file_name_.size() - 4, "0.00025");
+        file_name_.insert(file_name_.size() - 4, std::to_string(learning_rate_));
     }
 
     double GetReward(board_t board_t1, board_t board_t2) {
