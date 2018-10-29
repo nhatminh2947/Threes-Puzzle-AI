@@ -70,8 +70,8 @@ int main(int argc, const char *argv[]) {
 //    ExpectimaxPlayer player(play_args, 3);
     RandomEnvironment evil(evil_args);
 
-//    while (!stat.IsFinished()) {
-    while (!player.TrainingFinished(2)) {
+    while (!stat.IsFinished()) {
+//    while (!player.TrainingFinished(3)) {
         player.OpenEpisode("~:" + evil.name());
         evil.OpenEpisode(player.name() + ":~");
 

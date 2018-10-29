@@ -340,8 +340,8 @@ class TdLearningPlayer : public Player {
 public:
     TdLearningPlayer(const std::string &args = "") : Player("name=TdLearning role=Player " + args),
                                                      learning_rate_(0.0025), board_appears_3072_(0), tuple_id_(0),
-                                                     board_appears_1536_(0),
-                                                     tuple_size_(3) {
+                                                     board_appears_1536_(0), tuple_size_(3), count_after_3072_game_(0),
+                                                     count_after_1536_game_(0) {
 
         tuple_network_ = std::vector<NTupleNetwork>(tuple_size_);
         file_name_ = std::vector<std::string>(tuple_size_);
@@ -362,6 +362,10 @@ public:
             }
         }
     };
+
+    void CloseEpisode(const std::string &flag = "") override {
+        Reset();
+    }
 
     void Reset() {
         tuple_id_ = 0;
@@ -389,18 +393,12 @@ public:
             if ((tuple_id_ == 2 && board_t1 == board_appears_3072_) ||
                 (tuple_id_ == 1 && board_t1 == board_appears_1536_)) {
                 tuple_id_--;
-
-                if (TrainingFinished(tuple_id_)) {
-                    break;
-                }
             }
         }
 
         if (tuple_id_ < 0) {
             std::exit(-1);
         }
-
-        Reset();
     }
 
 //    void DecreaseLearningRate10Times() {
@@ -481,9 +479,6 @@ public:
 
     void save() {
         for (int i = 0; i < tuple_size_; ++i) {
-            if(TrainingFinished(i)) {
-                continue;
-            }
             std::ofstream save_stream(file_name_[i].c_str(), std::ios::out | std::ios::trunc);
             if (!save_stream.is_open()) std::exit(-1);
 
@@ -493,8 +488,8 @@ public:
     }
 
     void load(std::string file_name) {
+        std::string fn = file_name;
         for (int i = 0; i < tuple_size_; ++i) {
-            std::string fn = file_name;
             fn.insert(fn.size() - 4, std::to_string(i));
 
             std::ifstream load_stream(fn.c_str());
