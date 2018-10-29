@@ -239,8 +239,6 @@ public:
     }
 
     double GetValue(board_t board) override {
-        double total_value = 0.0;
-
         return lookup_table_[GetIndex(board,0)];
     }
 
@@ -462,7 +460,6 @@ class NTupleNetwork {
 
 public:
     NTupleNetwork() {
-        stage_ = 0;
         tuples.emplace_back(new AxeTuple());
         tuples.emplace_back(new RectangleTuple());
         tuples.emplace_back(new ValuableTileTuple());
@@ -471,26 +468,6 @@ public:
         tuples.emplace_back(new EmptyTileTuple());
         tuples.emplace_back(new NeighboringVTile());
     }
-
-//    void AddFeaturesForStage(int stage) {
-//        return;
-//        if(stage == stage_) return;
-//
-//        stage_ = stage;
-//
-//        switch (stage_) {
-//            case 1:
-//                tuples.emplace_back(new DistinctTilesTuple());
-//                tuples.emplace_back(new MergeableTilesTuple());
-//                tuples.emplace_back(new EmptyTileTuple());
-//                break;
-//            case 2:
-//                tuples.emplace_back(new NeighboringVTile());
-//                break;
-//            default:
-//                break;
-//        }
-//    }
 
     double GetValue(board_t board) {
         double total_value = 0;
@@ -521,7 +498,6 @@ public:
     }
 
 private:
-    int stage_;
     std::vector<std::unique_ptr<Tuple>> tuples;
 };
 

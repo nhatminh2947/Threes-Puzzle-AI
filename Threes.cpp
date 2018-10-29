@@ -67,11 +67,9 @@ int main(int argc, const char *argv[]) {
     }
 
     TdLearningPlayer player(play_args);
-//    ExpectimaxPlayer player(play_args, 3);
     RandomEnvironment evil(evil_args);
 
     while (!stat.IsFinished()) {
-//    while (!player.TrainingFinished(3)) {
         player.OpenEpisode("~:" + evil.name());
         evil.OpenEpisode(player.name() + ":~");
 
@@ -88,20 +86,16 @@ int main(int argc, const char *argv[]) {
         Agent &win = game.TakeLastTurns(player, evil);
         stat.CloseEpisode(win.name());
 
-        player.CloseEpisode(win.name());
-        evil.CloseEpisode(win.name());
-
         if (learning) {
             player.Learn(game);
 
             if (stat.IsBackup()) {
                 player.save();
             }
-//
-//            if(stat.GetCount() % 10 == 0) {
-//                std::cout << stat.GetCount() << std::endl;
-//            }
         }
+
+        player.CloseEpisode(win.name());
+        evil.CloseEpisode(win.name());
     }
 
     if (summary) {
