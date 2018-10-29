@@ -14,18 +14,58 @@
 
 class Statistic;
 
+class Agent;
+
 class Episode {
     friend class statistic;
 
 public:
+    struct Move {
+        Action code;
+        reward_t reward;
+        time_t time;
+        board_t board;
+
+        Move(board_t board = 0, Action code = {}, reward_t reward = 0, time_t time = 0) : board(board), code(code),
+                                                                                          reward(reward),
+                                                                                          time(time) {}
+
+        operator Action() const { return code; }
+
+        friend std::ostream &operator<<(std::ostream &out, const Move &m) {
+            out << m.code;
+            if (m.reward) out << '[' << std::dec << m.reward << ']';
+            if (m.time) out << '(' << std::dec << m.time << ')';
+            return out;
+        }
+
+        friend std::istream &operator>>(std::istream &in, Move &m) {
+            in >> m.code;
+            m.reward = 0;
+            m.time = 0;
+            if (in.peek() == '[') {
+                in.ignore(1);
+                in >> std::dec >> m.reward;
+                in.ignore(1);
+            }
+            if (in.peek() == '(') {
+                in.ignore(1);
+                in >> std::dec >> m.time;
+                in.ignore(1);
+            }
+            return in;
+        }
+    };
+
     Episode() : ep_state(InitialState()), ep_score(0), ep_time(0) { ep_moves.reserve(10000); }
 
-public:
     Board64 &state() { return ep_state; }
 
     const Board64 &state() const { return ep_state; }
 
     reward_t score() const { return ep_score; }
+
+    std::vector<Move> GetMoves() const { return ep_moves; }
 
     void OpenEpisode(const std::string &tag) {
         ep_open = {tag, millisec()};
@@ -38,7 +78,7 @@ public:
     bool ApplyAction(Action move) {
         reward_t reward = move.Apply(state());
         if (reward == -1) return false;
-        ep_moves.emplace_back(move, reward, millisec() - ep_time);
+        ep_moves.emplace_back(state().GetBoard(), move, reward, millisec() - ep_time);
         ep_score = reward;
         return true;
     }
@@ -125,41 +165,6 @@ public:
     }
 
 protected:
-
-    struct Move {
-        Action code;
-        reward_t reward;
-        time_t time;
-
-        Move(Action code = {}, reward_t reward = 0, time_t time = 0) : code(code), reward(reward), time(time) {}
-
-        operator Action() const { return code; }
-
-        friend std::ostream &operator<<(std::ostream &out, const Move &m) {
-            out << m.code;
-            if (m.reward) out << '[' << std::dec << m.reward << ']';
-            if (m.time) out << '(' << std::dec << m.time << ')';
-            return out;
-        }
-
-        friend std::istream &operator>>(std::istream &in, Move &m) {
-            in >> m.code;
-            m.reward = 0;
-            m.time = 0;
-            if (in.peek() == '[') {
-                in.ignore(1);
-                in >> std::dec >> m.reward;
-                in.ignore(1);
-            }
-            if (in.peek() == '(') {
-                in.ignore(1);
-                in >> std::dec >> m.time;
-                in.ignore(1);
-            }
-            return in;
-        }
-    };
-
     struct Meta {
         std::string tag;
         time_t when;

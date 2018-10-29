@@ -23,6 +23,28 @@
  *
  */
 
+static float ScoreHelper(board_t board, const float *table) {
+    return table[(board >> 0) & ROW_MASK] +
+           table[(board >> 16) & ROW_MASK] +
+           table[(board >> 32) & ROW_MASK] +
+           table[(board >> 48) & ROW_MASK];
+}
+
+static float GetBoardScore(board_t board) {
+    return ScoreHelper(board, score_table);
+}
+
+static board_t Transpose(board_t board) {
+    board_t a1 = board & 0xF0F00F0FF0F00F0FULL;
+    board_t a2 = board & 0x0000F0F00000F0F0ULL;
+    board_t a3 = board & 0x0F0F00000F0F0000ULL;
+    board_t a = a1 | (a2 << 12) | (a3 >> 12);
+    board_t b1 = a & 0xFF00FF0000FF00FFULL;
+    board_t b2 = a & 0x00FF00FF00000000ULL;
+    board_t b3 = a & 0x00000000FF00FF00ULL;
+    return b1 | (b2 >> 24) | (b3 << 24);
+}
+
 class Board64 {
 public:
     Board64() : board_() {}
@@ -45,7 +67,15 @@ public:
         return row_t((board_ >> (i * 16)) & ROW_MASK);
     }
 
-    board_t operator()(int i) {
+    board_t GetBoard() {
+        return board_;
+    }
+
+    board_t GetBoard() const {
+        return board_;
+    }
+
+    int operator()(int i) {
         int row_id = i / 4;
         int col_id = i % 4;
 
@@ -55,7 +85,7 @@ public:
         return cell;
     }
 
-    const board_t operator()(int i) const {
+    const int operator()(int i) const {
         int row_id = i / 4;
         int col_id = i % 4;
 
@@ -101,8 +131,8 @@ public:
         if (position >= 16) return -1;
         if (tile != 1 && tile != 2 && tile != 3) return -1;
 
-        int row_id = position / 4;
-        int col_id = position % 4;
+        board_t row_id = position / 4;
+        board_t col_id = position % 4;
 
         board_t row = board_t(tile) << (row_id * 16);
         board_t cell = row << (col_id * 4);
@@ -158,7 +188,7 @@ public:
 
     reward_t SlideUp() {
         board_t ret = board_;
-        board_t transpose_board = Transpose(board_);
+        board_t transpose_board = ::Transpose(board_);
 
         ret ^= col_up_table[(transpose_board >> 0) & ROW_MASK] << 0;
         ret ^= col_up_table[(transpose_board >> 16) & ROW_MASK] << 4;
@@ -171,7 +201,7 @@ public:
 
     reward_t SlideDown() {
         board_t ret = board_;
-        board_t transpose_board = Transpose(board_);
+        board_t transpose_board = ::Transpose(board_);
 
         ret ^= col_down_table[(transpose_board >> 0) & ROW_MASK] << 0;
         ret ^= col_down_table[(transpose_board >> 16) & ROW_MASK] << 4;
@@ -182,24 +212,9 @@ public:
         return GetBoardScore(ret);
     }
 
-    board_t Transpose(board_t board) {
-        board_t a1 = board & 0xF0F00F0FF0F00F0FULL;
-        board_t a2 = board & 0x0000F0F00000F0F0ULL;
-        board_t a3 = board & 0x0F0F00000F0F0000ULL;
-        board_t a = a1 | (a2 << 12) | (a3 >> 12);
-        board_t b1 = a & 0xFF00FF0000FF00FFULL;
-        board_t b2 = a & 0x00FF00FF00000000ULL;
-        board_t b3 = a & 0x00000000FF00FF00ULL;
-        return b1 | (b2 >> 24) | (b3 << 24);
-    }
-
     float GetHeuristicScore() {
         return ScoreHelper(board_, heur_score_table) +
-               ScoreHelper(Transpose(board_), heur_score_table);
-    }
-
-    float GetBoardScore(board_t board) {
-        return ScoreHelper(board, score_table);
+               ScoreHelper(::Transpose(board_), heur_score_table);
     }
 
     cell_t GetMaxTile() {
@@ -216,13 +231,53 @@ public:
                                           row_max_table[(board_ >> 48) & ROW_MASK])));
     }
 
+    row_t GetRow(int row){
+        return row_t((board_ >> (16ULL*row)) & ROW_MASK);
+    }
+
+    row_t GetCol(int col) {
+        board_t transpose_board = ::Transpose(board_);
+        return row_t((transpose_board >> 16ULL*col) & ROW_MASK);
+    }
+
+    void SetRow(int row_id, row_t value) {
+        board_ = (board_ ^ (board_t(GetRow(row_id)) << (16ULL * row_id))) | (board_t(value) << (16ULL * row_id));
+    }
+
+    static void PrintBoard(board_t board) {
+        int i,j;
+        for(i=0; i<4; i++) {
+            for(j=0; j<4; j++) {
+                printf("%c", "0123456789abcdef"[(board)&0xf]);
+                board >>= 4;
+            }
+            printf("\n");
+        }
+        printf("\n");
+    }
+
+    void TurnRight() {
+        this->Transpose();
+        this->ReflectVertical();
+    }
+
+    void ReflectVertical() {
+        for (int r = 0; r < 4; r++) {
+            this->ReverseRow(r);
+        }
+    }
+
+    void Transpose() {
+        board_ = ::Transpose(this->board_);
+    }
+
 private:
     board_t board_;
 
-    float ScoreHelper(board_t board, const float *table) {
-        return table[(board >> 0) & ROW_MASK] +
-               table[(board >> 16) & ROW_MASK] +
-               table[(board >> 32) & ROW_MASK] +
-               table[(board >> 48) & ROW_MASK];
+    row_t ReverseRow(int row_id) {
+        row_t row = GetRow(row_id);
+        row = (row&0xf000) >> 12 | (row&0x0f00) >> 4 | (row&0x00f0)<<4 | (row&0x000f) << 12;
+
+        SetRow(row_id, row);
     }
 };
