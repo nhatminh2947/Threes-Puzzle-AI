@@ -45,7 +45,7 @@ int main(int argc, const char *argv[]) {
             evil_args = para.substr(para.find("=") + 1);
         } else if (para.find("--load=") == 0) {
             load = para.substr(para.find("=") + 1);
-        } else if (para.find("--learn=") == 0) {
+        } else if (para.find("--learn") == 0) {
             learning = true;
         } else if (para.find("--save=") == 0) {
             std::string s = para.substr(para.find("=") + 1);
