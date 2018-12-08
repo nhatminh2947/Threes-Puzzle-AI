@@ -115,19 +115,23 @@ public:
                 break;
         }
 
-        if (bag_.empty()) {
-            bag_ = {1, 2, 3};
+        if (bag_ == 0) {
+            bag_ = 1 << BOARD_SIZE;
         }
 
         std::shuffle(positions_.begin(), positions_.end(), engine_);
-        std::shuffle(bag_.begin(), bag_.end(), engine_);
 
-        for (int position : positions_) {
-            board_t value = board.operator()(position);
+        cell_t id;
+        do {
+            id = cell_t(engine_() % 12);
+        } while ((bag_ & (1 << id)) == 0);
+
+        for (unsigned int position : positions_) {
+            int value = board.operator()(position);
             if (value != 0) continue;
 
-            cell_t tile = bag_.back();
-            bag_.pop_back();
+            cell_t tile = id % 3 + 1;
+            total_generated_tiles_++;
             return Action::Place(position, tile);
         }
 
@@ -135,12 +139,36 @@ public:
     }
 
     void CloseEpisode(const std::string &flag = "") override {
-        bag_ = {1, 2, 3};
+        bag_ = 1 << BOARD_SIZE;
         positions_ = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
     };
 
 private:
-    std::vector<cell_t> bag_ = {1, 2, 3};
+    cell_t GetBonusRandomTile(Board64 board) {
+        cell_t max_tile = board.GetMaxTile();
+
+        if (max_tile < 7) {
+            return 0;
+        }
+
+        if (engine_() % 21 != 0) {
+            return 0;
+        }
+
+        if (n_bonus_tile_ + 1.0 / total_generated_tiles_ > 1.0 / 21.0) {
+            return 0;
+        }
+
+        n_bonus_tile_++;
+        int upper_bound = max_tile - 3;
+
+        return 6 + engine_() % (upper_bound - 6 + 1);
+    }
+
+private:
+    bool n_bonus_tile_ = 0;
+    int total_generated_tiles_ = 0;
+    int bag_ = 1 << BOARD_SIZE;
     std::vector<unsigned int> positions_;
     std::uniform_int_distribution<int> popup_;
 };

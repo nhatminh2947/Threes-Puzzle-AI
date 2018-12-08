@@ -273,6 +273,7 @@ public:
 
 private:
     board_t board_;
+    cell_t largest_tile_;
 
     row_t ReverseRow(int row_id) {
         row_t row = GetRow(row_id);
