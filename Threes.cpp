@@ -75,12 +75,17 @@ int main(int argc, const char *argv[]) {
 
         stat.OpenEpisode(player.name() + ":" + evil.name());
         Episode &game = stat.Back();
-
+        int count = 0;
         while (true) {
             Agent &agent = game.TakeTurns(player, evil);
             Action move = agent.TakeAction(game.state(), move);
+
             if (!game.ApplyAction(move)) break;
             if (agent.CheckForWin(game.state())) break;
+            count++;
+            if(count == 106) {
+//                std::cout << "here" ;
+            }
         }
 
         Agent &win = game.TakeLastTurns(player, evil);
@@ -89,9 +94,9 @@ int main(int argc, const char *argv[]) {
         if (learning) {
             player.Learn(game);
 
-            if (stat.IsBackup()) {
-                player.save();
-            }
+//            if (stat.IsBackup()) {
+//                player.save();
+//            }
         }
 
         player.CloseEpisode(win.name());

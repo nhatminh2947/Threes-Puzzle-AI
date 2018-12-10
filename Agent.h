@@ -116,21 +116,33 @@ public:
         }
 
         if (bag_ == 0) {
-            bag_ = 1 << BOARD_SIZE;
+            bag_ = (1 << BOARD_SIZE) - 1;
+        }
+
+        bool bonus = true;
+        int tile;
+        tile = GetBonusRandomTile(board);
+
+        if(tile == 0) {
+            do {
+                tile = cell_t(engine_() % 12);
+            } while ((bag_ & (1 << tile)) == 0);
+//            std::cout << tile << std::endl;
+
+            bonus = false;
         }
 
         std::shuffle(positions_.begin(), positions_.end(), engine_);
-
-        cell_t id;
-        do {
-            id = cell_t(engine_() % 12);
-        } while ((bag_ & (1 << id)) == 0);
 
         for (unsigned int position : positions_) {
             int value = board.operator()(position);
             if (value != 0) continue;
 
-            cell_t tile = id % 3 + 1;
+            if(!bonus) {
+                bag_ = bag_ ^ (1 << tile);
+                tile = tile % 3 + 1;
+            }
+
             total_generated_tiles_++;
             return Action::Place(position, tile);
         }
@@ -139,12 +151,12 @@ public:
     }
 
     void CloseEpisode(const std::string &flag = "") override {
-        bag_ = 1 << BOARD_SIZE;
+        bag_ = (1 << BOARD_SIZE) - 1;
         positions_ = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
     };
 
 private:
-    cell_t GetBonusRandomTile(Board64 board) {
+    int GetBonusRandomTile(Board64 board) {
         cell_t max_tile = board.GetMaxTile();
 
         if (max_tile < 7) {
@@ -155,20 +167,20 @@ private:
             return 0;
         }
 
-        if (n_bonus_tile_ + 1.0 / total_generated_tiles_ > 1.0 / 21.0) {
+        if ((n_bonus_tile_ + 1.0) / (1.0 * total_generated_tiles_) > 1.0 / 21.0) {
             return 0;
         }
 
         n_bonus_tile_++;
         int upper_bound = max_tile - 3;
 
-        return 6 + engine_() % (upper_bound - 6 + 1);
+        return 4 + engine_() % (upper_bound - 4 + 1);
     }
 
 private:
-    bool n_bonus_tile_ = 0;
+    int n_bonus_tile_ = 0;
     int total_generated_tiles_ = 0;
-    int bag_ = 1 << BOARD_SIZE;
+    int bag_ = (1 << BOARD_SIZE) - 1;
     std::vector<unsigned int> positions_;
     std::uniform_int_distribution<int> popup_;
 };
@@ -428,11 +440,6 @@ public:
             std::exit(-1);
         }
     }
-
-//    void DecreaseLearningRate10Times() {
-//        learning_rate_ /= 10;
-//        file_name_.insert(file_name_.size() - 4, "0.00025");
-//    }
 
     double GetReward(board_t board_t1, board_t board_t2) {
         return GetBoardScore(board_t2) - GetBoardScore(board_t1);

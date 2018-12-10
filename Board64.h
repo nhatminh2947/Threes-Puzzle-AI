@@ -123,13 +123,9 @@ public:
         return out;
     }
 
-    /**
-     * place a tile (index value) to the specific position (1-d form index)
-     * return 0 if the action is valid, or -1 if not
-     */
     reward_t Place(unsigned int position, cell_t tile) {
         if (position >= 16) return -1;
-        if (tile != 1 && tile != 2 && tile != 3) return -1;
+//        if (tile != 1 && tile != 2 && tile != 3) return -1;
 
         board_t row_id = position / 4;
         board_t col_id = position % 4;
