@@ -15,7 +15,7 @@ typedef uint8_t cell_t;
 
 static const board_t ROW_MASK = 0xFFFFULL;
 static const board_t COL_MASK = 0x000F000F000F000FULL;
-static const board_t SIX_TUPLE_MASK = 0xffffffULL;
+static const board_t SIX_TUPLE_AND_HINT_MASK = 0xfffffffULL;
 static const int BOARD_SIZE = 12;
 
 #endif //THREES_CPP_COMMON_H
