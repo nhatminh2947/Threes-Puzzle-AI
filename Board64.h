@@ -47,9 +47,9 @@ static board_t Transpose(board_t board) {
 
 class Board64 {
 public:
-    Board64() : board_() {}
+    Board64() : board_(), hint_(0) {}
 
-    Board64(const board_t &board) : board_(board) {}
+    Board64(const board_t &board, const int hint = 0) : board_(board), hint_(hint) {}
 
     Board64(const Board64 &board) = default;
 
@@ -267,9 +267,22 @@ public:
         board_ = ::Transpose(this->board_);
     }
 
+    int GetHint() {
+        return hint_;
+    }
+
+    const int GetHint() const {
+        return hint_;
+    }
+
+    void SetHint(int hint) {
+        hint_ = hint;
+    }
+
 private:
     board_t board_;
     cell_t largest_tile_;
+    int hint_;
 
     row_t ReverseRow(int row_id) {
         row_t row = GetRow(row_id);

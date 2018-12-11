@@ -94,9 +94,11 @@ public:
     RandomEnvironment(const std::string &args = "") : RandomAgent("name=random role=environment " + args),
                                                       positions_(
                                                               {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}),
-                                                      popup_(1, 3) {}
+                                                      popup_(1, 3),
+                                                      hint(0),
+                                                      bag_({0,4,4,4}) {}
 
-    Action TakeAction(const Board64 &board, const Action &player_action) override {
+    Action TakeAction(Board64 &board, const Action &player_action) {
         switch (player_action.event()) {
             case 0:
                 positions_ = {12, 13, 14, 15};
@@ -115,21 +117,11 @@ public:
                 break;
         }
 
-        if (bag_ == 0) {
-            bag_ = (1 << BOARD_SIZE) - 1;
-        }
-
-        bool bonus = true;
-        int tile;
-        tile = GetBonusRandomTile(board);
-
-        if(tile == 0) {
+        int hint = board.GetHint();
+        if(hint == 0) {
             do {
-                tile = cell_t(engine_() % 12);
-            } while ((bag_ & (1 << tile)) == 0);
-//            std::cout << tile << std::endl;
-
-            bonus = false;
+                hint = engine_() % 3 + 1;
+            } while (bag_[hint] == 0);
         }
 
         std::shuffle(positions_.begin(), positions_.end(), engine_);
@@ -138,20 +130,45 @@ public:
             int value = board.operator()(position);
             if (value != 0) continue;
 
-            if(!bonus) {
-                bag_ = bag_ ^ (1 << tile);
-                tile = tile % 3 + 1;
+            total_generated_tiles_++;
+            bag_[hint]--;
+
+            Action::Place action = Action::Place(position, hint);
+
+            bool bonus = true;
+            hint = GetBonusRandomTile(board);
+
+            if (hint == 0) {
+                bool empty_bag = true;
+                for(int i = 1; i <= 3; i++) {
+                    if(bag_[i] != 0) {
+                        empty_bag = false;
+                    }
+                }
+
+                if(empty_bag) {
+                    for(int i = 1; i <= 3; i++) {
+                        bag_[i] = 4;
+                    }
+                }
+
+                do {
+                    hint = engine_() % 3 + 1;
+                } while (bag_[hint] == 0);
             }
 
-            total_generated_tiles_++;
-            return Action::Place(position, tile);
+            board.SetHint(hint);
+
+            return action;
         }
 
         return Action();
     }
 
     void CloseEpisode(const std::string &flag = "") override {
-        bag_ = (1 << BOARD_SIZE) - 1;
+        for(int i = 1; i <= 3; i++) {
+            bag_[i] = 4;
+        }
         positions_ = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
     };
 
@@ -180,7 +197,8 @@ private:
 private:
     int n_bonus_tile_ = 0;
     int total_generated_tiles_ = 0;
-    int bag_ = (1 << BOARD_SIZE) - 1;
+    int hint;
+    std::array<int, 4> bag_;
     std::vector<unsigned int> positions_;
     std::uniform_int_distribution<int> popup_;
 };
@@ -376,15 +394,16 @@ private:
     bool ok = false;
 };
 
-class TdLearningPlayer : public Player {
+class TdLambdaPlayer : public Player {
 public:
-    TdLearningPlayer(const std::string &args = "") : Player("name=TdLearning role=Player " + args),
-                                                     learning_rate_(0.0025), board_appears_3072_(0), tuple_id_(0),
-                                                     board_appears_1536_(0), tuple_size_(3), count_after_3072_game_(0),
-                                                     count_after_1536_game_(0) {
+    TdLambdaPlayer(const std::string &args = "") : Player("name=TDLambda role=Player " + args),
+                                                   lambda_(0.5), learning_rate_(0.0025), board_appears_3072_(0),
+                                                   current_tuple_(0), board_appears_1536_(0), tuple_size_(3),
+                                                   count_after_3072_game_(0), count_after_1536_game_(0) {
 
         tuple_network_ = std::vector<NTupleNetwork>(tuple_size_);
         file_name_ = std::vector<std::string>(tuple_size_);
+        limit_update_ = int(ceil(log(0.1) / log(lambda_))) - 1;
 
         if (meta_.find("load") != meta_.end()) {
             std::string file_name = meta_["load"].value;
@@ -408,7 +427,7 @@ public:
     }
 
     void Reset() {
-        tuple_id_ = 0;
+        current_tuple_ = 0;
         board_appears_1536_ = 0;
         board_appears_3072_ = 0;
     }
@@ -417,7 +436,7 @@ public:
         std::vector<Episode::Move> moves = episode.GetMoves();
         moves.push_back(moves.back());
 
-        tuple_network_[tuple_id_].UpdateValue(moves.back().board, learning_rate_ * (0 - V(moves.back().board)));
+        UpdateTupleValue(moves, moves.size() - 1, -V(moves.back().board));
 
         for (int i = moves.size() - 3; i >= 1; i -= 2) {
             Episode::Move state_t1 = moves[i];
@@ -427,17 +446,35 @@ public:
             board_t board_t2 = state_t2.board;
 
             double reward = GetReward(board_t1, board_t2);
+            double delta = reward + (V(board_t2) - V(board_t1));
 
-            tuple_network_[tuple_id_].UpdateValue(board_t1, learning_rate_ * (reward + V(board_t2) - V(board_t1)));
+            UpdateTupleValue(moves, i, delta);
 
-            if ((tuple_id_ == 2 && board_t1 == board_appears_3072_) ||
-                (tuple_id_ == 1 && board_t1 == board_appears_1536_)) {
-                tuple_id_--;
+            if ((current_tuple_ == 2 && board_t1 == board_appears_3072_) ||
+                (current_tuple_ == 1 && board_t1 == board_appears_1536_)) {
+                current_tuple_--;
             }
         }
 
-        if (tuple_id_ < 0) {
+        if (current_tuple_ < 0) {
             std::exit(-1);
+        }
+    }
+
+    void UpdateTupleValue(std::vector<Episode::Move> moves, int t, double delta) {
+        int current = current_tuple_;
+        for (int k = t, count = 0; k >= 1 && count < limit_update_; k -= 2, count++) {
+            Episode::Move state_t1 = moves[k];
+
+            board_t board_t1 = state_t1.board;
+            Board64 board = Board64(state_t1.board, state_t1.hint);
+
+            tuple_network_[current].UpdateValue(board, learning_rate_ * pow(lambda_, t - k) * delta);
+
+            if ((current == 2 && board_t1 == board_appears_3072_) ||
+                (current == 1 && board_t1 == board_appears_1536_)) {
+                current--;
+            }
         }
     }
 
@@ -458,23 +495,23 @@ public:
     bool TrainingFinished(int stage, int limit = 5000000) {
         switch (stage) {
             case 1:
-                return count_after_1536_game_ >= limit;
+                return count_after_1536_game_ > limit;
             case 2:
-                return count_after_3072_game_ >= limit;
+                return count_after_3072_game_ > limit;
             default:
                 return false;
         }
     }
 
     Action TakeAction(const Board64 &board, const Action &evil_action) override {
-        if (tuple_id_ < 1 && FindTile(board, 12)) {
-            tuple_id_ = 1;
+        if (current_tuple_ < 1 && FindTile(board, 12)) {
+            current_tuple_ = 1;
             count_after_1536_game_++;
             board_appears_1536_ = board.GetBoard();
         }
 
-        if (tuple_id_ < 2 && FindTile(board, 13)) {
-            tuple_id_ = 2;
+        if (current_tuple_ < 2 && FindTile(board, 13)) {
+            current_tuple_ = 2;
             count_after_3072_game_++;
             board_appears_3072_ = board.GetBoard();
         }
@@ -509,7 +546,7 @@ public:
     }
 
     double V(board_t board) {
-        return tuple_network_[tuple_id_].GetValue(board);
+        return tuple_network_[current_tuple_].GetValue(board);
     }
 
     void save() {
@@ -536,13 +573,15 @@ public:
     }
 
 private:
-    int tuple_id_;
+    int limit_update_;
+    int current_tuple_;
     int tuple_size_;
     board_t board_appears_1536_;
     board_t board_appears_3072_;
     size_t count_after_3072_game_;
     size_t count_after_1536_game_;
     double learning_rate_;
+    double lambda_;
     std::vector<std::string> file_name_;
     std::vector<NTupleNetwork> tuple_network_;
 };
