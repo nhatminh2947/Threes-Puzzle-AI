@@ -108,16 +108,20 @@ class Action::Place : public Action {
 public:
     static constexpr unsigned type = type_flag('p');
 
-    Place(unsigned pos, unsigned tile) : Action(Place::type | (pos & 0x0f) | (std::min(tile, 35u) << 4)) {}
+    Place(unsigned pos, unsigned tile, unsigned hint = 0) : Action(
+            Place::type | (pos & 0x0f) | (std::min(tile, 35u) << 4) | (hint << 8)) {}
 
     Place(const Action &a = {}) : Action(a) {}
 
     unsigned position() const { return event() & 0x0f; }
 
-    unsigned tile() const { return event() >> 4; }
+    unsigned tile() const { return (event() >> 4) & 0x0f; }
+
+    unsigned hint() const { return (event() >> 8) & 0x0f; }
 
 public:
     reward_t Apply(Board64 &b) const {
+        b.SetHint(hint());
         return b.Place(position(), tile());
     }
 

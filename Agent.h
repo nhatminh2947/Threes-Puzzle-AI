@@ -96,9 +96,9 @@ public:
                                                               {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}),
                                                       popup_(1, 3),
                                                       hint(0),
-                                                      bag_({0,4,4,4}) {}
+                                                      bag_({0, 4, 4, 4}) {}
 
-    Action TakeAction(Board64 &board, const Action &player_action) {
+    Action TakeAction(const Board64 &board, const Action &player_action) {
         switch (player_action.event()) {
             case 0:
                 positions_ = {12, 13, 14, 15};
@@ -118,10 +118,8 @@ public:
         }
 
         int hint = board.GetHint();
-        if(hint == 0) {
-            do {
-                hint = engine_() % 3 + 1;
-            } while (bag_[hint] == 0);
+        if (board.GetBoard() == 0) {
+            hint = engine_() % 3 + 1;
         }
 
         std::shuffle(positions_.begin(), positions_.end(), engine_);
@@ -131,42 +129,40 @@ public:
             if (value != 0) continue;
 
             total_generated_tiles_++;
-            bag_[hint]--;
 
-            Action::Place action = Action::Place(position, hint);
+            if (hint <= 3) {
+                bag_[hint]--;
+            }
 
-            bool bonus = true;
-            hint = GetBonusRandomTile(board);
+            int next_hint = GetBonusRandomTile(board);
 
-            if (hint == 0) {
+            if (next_hint == 0) {
                 bool empty_bag = true;
-                for(int i = 1; i <= 3; i++) {
-                    if(bag_[i] != 0) {
+                for (int i = 1; i <= 3; i++) {
+                    if (bag_[i] != 0) {
                         empty_bag = false;
                     }
                 }
 
-                if(empty_bag) {
-                    for(int i = 1; i <= 3; i++) {
+                if (empty_bag) {
+                    for (int i = 1; i <= 3; i++) {
                         bag_[i] = 4;
                     }
                 }
 
                 do {
-                    hint = engine_() % 3 + 1;
-                } while (bag_[hint] == 0);
+                    next_hint = engine_() % 3 + 1;
+                } while (bag_[next_hint] == 0);
             }
 
-            board.SetHint(hint);
-
-            return action;
+            return Action::Place(position, hint, next_hint);
         }
 
         return Action();
     }
 
     void CloseEpisode(const std::string &flag = "") override {
-        for(int i = 1; i <= 3; i++) {
+        for (int i = 1; i <= 3; i++) {
             bag_[i] = 4;
         }
         positions_ = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
@@ -397,13 +393,14 @@ private:
 class TdLambdaPlayer : public Player {
 public:
     TdLambdaPlayer(const std::string &args = "") : Player("name=TDLambda role=Player " + args),
-                                                   lambda_(0.5), learning_rate_(0.0025), board_appears_3072_(0),
+                                                   lambda_(0.9), learning_rate_(0.0025), board_appears_3072_(0),
                                                    current_tuple_(0), board_appears_1536_(0), tuple_size_(3),
                                                    count_after_3072_game_(0), count_after_1536_game_(0) {
 
         tuple_network_ = std::vector<NTupleNetwork>(tuple_size_);
         file_name_ = std::vector<std::string>(tuple_size_);
-        limit_update_ = int(ceil(log(0.1) / log(lambda_))) - 1;
+//        limit_update_ = int(ceil(log(0.1) / log(lambda_))) - 1;
+        limit_update_ = 5;
 
         if (meta_.find("load") != meta_.end()) {
             std::string file_name = meta_["load"].value;
@@ -411,7 +408,7 @@ public:
         }
 
         if (meta_.find("alpha") != meta_.end())
-            learning_rate_ = double(meta_["alpha"]);
+            learning_rate_ = float(meta_["alpha"]);
 
         if (meta_.find("save") != meta_.end()) { // pass save=... to save to a specific file
             std::string file_name = meta_["save"].value;
@@ -434,19 +431,19 @@ public:
 
     void Learn(const Episode &episode) {
         std::vector<Episode::Move> moves = episode.GetMoves();
-        moves.push_back(moves.back());
 
-        UpdateTupleValue(moves, moves.size() - 1, -V(moves.back().board));
+        UpdateTupleValue(moves, moves.size() - 2, -V(moves[moves.size()-2].board));
 
-        for (int i = moves.size() - 3; i >= 1; i -= 2) {
-            Episode::Move state_t1 = moves[i];
-            Episode::Move state_t2 = moves[i + 2];
+        for (int i = moves.size() - 4; i > 9; i -= 2) {
+            Episode::Move state_s_t1 = moves[i];
+            Episode::Move state_t2 = moves[i+1];
+            Episode::Move state_s_t2 = moves[i + 2];
 
-            board_t board_t1 = state_t1.board;
-            board_t board_t2 = state_t2.board;
+            board_t board_t1 = state_s_t1.board;
+            board_t board_t2 = state_s_t2.board;
 
-            double reward = GetReward(board_t1, board_t2);
-            double delta = reward + (V(board_t2) - V(board_t1));
+            float reward = GetReward(state_t2.board, state_s_t2.board);
+            float delta = reward + (V(board_t2) - V(board_t1));
 
             UpdateTupleValue(moves, i, delta);
 
@@ -461,9 +458,9 @@ public:
         }
     }
 
-    void UpdateTupleValue(std::vector<Episode::Move> moves, int t, double delta) {
+    void UpdateTupleValue(std::vector<Episode::Move> moves, int t, float delta) {
         int current = current_tuple_;
-        for (int k = t, count = 0; k >= 1 && count < limit_update_; k -= 2, count++) {
+        for (int k = t, count = 0; k > 9 && count < limit_update_; k -= 2, count++) {
             Episode::Move state_t1 = moves[k];
 
             board_t board_t1 = state_t1.board;
@@ -478,7 +475,7 @@ public:
         }
     }
 
-    double GetReward(board_t board_t1, board_t board_t2) {
+    float GetReward(board_t board_t1, board_t board_t2) {
         return GetBoardScore(board_t2) - GetBoardScore(board_t1);
     }
 
@@ -520,7 +517,7 @@ public:
     }
 
     Action Policy(Board64 board) {
-        double max_score = INT64_MIN;
+        float max_score = INT64_MIN;
         int chosen_direction = -1;
 
         for (int direction : directions_) {
@@ -529,7 +526,7 @@ public:
             temp_board.Slide(direction);
             if (temp_board == board) continue;
 
-            double score =
+            float score =
                     (GetBoardScore(temp_board.GetBoard()) - GetBoardScore(board.GetBoard())) + V(temp_board.GetBoard());
 
             if (score > max_score) {
@@ -545,7 +542,7 @@ public:
         return Action();
     }
 
-    double V(board_t board) {
+    float V(board_t board) {
         return tuple_network_[current_tuple_].GetValue(board);
     }
 
@@ -580,8 +577,8 @@ private:
     board_t board_appears_3072_;
     size_t count_after_3072_game_;
     size_t count_after_1536_game_;
-    double learning_rate_;
-    double lambda_;
+    float learning_rate_;
+    float lambda_;
     std::vector<std::string> file_name_;
     std::vector<NTupleNetwork> tuple_network_;
 };
