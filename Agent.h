@@ -393,7 +393,7 @@ private:
 class TdLambdaPlayer : public Player {
 public:
     TdLambdaPlayer(const std::string &args = "") : Player("name=TDLambda role=Player " + args),
-                                                   lambda_(0.9), learning_rate_(0.0025), board_appears_3072_(0),
+                                                   lambda_(0.5), learning_rate_(0.0025), board_appears_3072_(0),
                                                    current_tuple_(0), board_appears_1536_(0), tuple_size_(3),
                                                    count_after_3072_game_(0), count_after_1536_game_(0) {
 
@@ -432,29 +432,66 @@ public:
     void Learn(const Episode &episode) {
         std::vector<Episode::Move> moves = episode.GetMoves();
 
-        UpdateTupleValue(moves, moves.size() - 2, -V(moves[moves.size()-2].board));
+//        UpdateTupleValue(moves, moves.size() - 2, -V(moves[moves.size()-2].board));
 
-        for (int i = moves.size() - 4; i > 9; i -= 2) {
-            Episode::Move state_s_t1 = moves[i];
-            Episode::Move state_t2 = moves[i+1];
-            Episode::Move state_s_t2 = moves[i + 2];
+//        for (int i = moves.size() - 4; i > 9; i -= 2) {
+//            Episode::Move state_s_t1 = moves[i];
+//            Episode::Move state_t2 = moves[i+1];
+//            Episode::Move state_s_t2 = moves[i + 2];
+//
+//            board_t board_t1 = state_s_t1.board;
+//            board_t board_t2 = state_s_t2.board;
+//
+//            float reward = GetReward(state_t2.board, state_s_t2.board);
+//            float delta = reward + (V(board_t2) - V(board_t1));
+//
+//            UpdateTupleValue(moves, i, delta);
+//
+//            if ((current_tuple_ == 2 && board_t1 == board_appears_3072_) ||
+//                (current_tuple_ == 1 && board_t1 == board_appears_1536_)) {
+//                current_tuple_--;
+//            }
+//        }
 
-            board_t board_t1 = state_s_t1.board;
-            board_t board_t2 = state_s_t2.board;
+        for (int i = 9; i < moves.size(); i += 2) {
+            float score = 0;
+            float total_reward = 0;
+            float ld = 1;
 
-            float reward = GetReward(state_t2.board, state_s_t2.board);
-            float delta = reward + (V(board_t2) - V(board_t1));
+            bool is_appears_1536 = false;
+            bool is_appears_3072 = false;
 
-            UpdateTupleValue(moves, i, delta);
+            for (int j = 0; j < 5 && (i + j * 2) < moves.size(); j++) {
 
-            if ((current_tuple_ == 2 && board_t1 == board_appears_3072_) ||
-                (current_tuple_ == 1 && board_t1 == board_appears_1536_)) {
-                current_tuple_--;
+                if (Board64(moves[i + j].board).GetMaxTile() >= 13) {
+                    is_appears_1536 = is_appears_3072 = true;
+                } else if (Board64(moves[i + j].board).GetMaxTile() >= 12) {
+                    is_appears_1536 = true;
+                }
+
+                float weight = ld;
+                if (j != 4) {
+                    weight *= (1 - lambda_);
+                }
+                ld *= lambda_;
+
+                total_reward += (GetBoardScore(moves[i+j].board) - GetBoardScore(moves[i+j-1].board));
+                score += weight * (total_reward + V(moves[i + j].board, is_appears_1536 + is_appears_3072));
             }
-        }
 
-        if (current_tuple_ < 0) {
-            std::exit(-1);
+            is_appears_1536 = false;
+            is_appears_3072 = false;
+            if (Board64(moves[i].board).GetMaxTile() >= 13) {
+                is_appears_1536 = is_appears_3072 = true;
+            } else if (Board64(moves[i].board).GetMaxTile() >= 12) {
+                is_appears_1536 = true;
+            }
+
+            Board64 board = Board64(moves[i].board, moves[i].hint);
+            tuple_network_[is_appears_1536 + is_appears_3072].UpdateValue(board,
+                                                                          learning_rate_ * (score - V(moves[i].board,
+                                                                                                      is_appears_1536 +
+                                                                                                      is_appears_3072)));
         }
     }
 
@@ -540,6 +577,10 @@ public:
         }
 
         return Action();
+    }
+
+    float V(board_t board, int tuple_id) {
+        return tuple_network_[tuple_id].GetValue(board);
     }
 
     float V(board_t board) {
