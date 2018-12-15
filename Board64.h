@@ -291,6 +291,17 @@ public:
         hint_ = hint;
     }
 
+    bool IsTerminal() {
+        for (int direction = 0; direction < 4; ++direction) {
+            Board64 temp_board = board_;
+            temp_board.Slide(direction);
+            if (temp_board != board_)
+                return false;
+        }
+
+        return true;
+    }
+
 private:
     board_t board_;
     cell_t largest_tile_;

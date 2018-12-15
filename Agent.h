@@ -435,14 +435,10 @@ public:
 
         for (int i = 9; i < moves.size(); i += 2) {
             Board64 after_state(moves[i].board, moves[i].hint);
-            id = GetTupleId(moves[i].board);
+            id = GetTupleId(after_state);
 
             if (i + 2 < moves.size()) {
                 Board64 after_state_next = Board64(moves[i+2].board, moves[i+2].hint);
-//                tuple_network_[id].UpdateValue(after_state, learning_rate_ * (moves[i+2].reward +
-//                                                                               V(after_state_next,
-//                                                                                 GetTupleId(after_state_next.GetBoard()))
-//                                                                               - V(after_state, id)));
 
                 tuple_network_[id].UpdateValue(after_state, learning_rate_ * (GetReward(i, moves)- V(after_state, id)));
             } else {
@@ -451,10 +447,10 @@ public:
         }
     }
 
-    int GetTupleId(board_t board) {
-        if (Board64(board).GetMaxTile() >= 13)
+    int GetTupleId(Board64 board) {
+        if (board.GetMaxTile() >= 13)
             return 2;
-        if (Board64(board).GetMaxTile() >= 12)
+        if (board.GetMaxTile() >= 12)
             return 1;
 
         return 0;
@@ -481,7 +477,7 @@ public:
         }
         if(t + 2 * k < moves.size()) {
             Board64 board(moves[t + 2 * k].board, moves[t + 2 * k].hint);
-            reward += V(board, GetTupleId(board.GetBoard()));
+            reward += V(board, GetTupleId(board));
         }
 
         return reward;
@@ -547,6 +543,84 @@ public:
         }
 
         return Action();
+    }
+
+    float Expectimax(int state, Board64 board, int player_move, int bag, int hint, int depth) {
+        if (board.IsTerminal()) {
+            return 0;
+        }
+
+        if(depth == 0) {
+            return V(board, GetTupleId(board));
+        }
+
+        if (state == 1) { // Max node - before state
+            int direction = -1;
+            float max_reward = -1;
+            for (int d = 0; d < 4; ++d) { //direction
+                Board64 child = board;
+                reward_t reward = child.Slide(d);
+                if (child == board) continue;
+
+                reward += Expectimax(1 - state, child, d, bag, hint, depth - 1);
+
+                if(reward > max_reward) {
+                    max_reward = reward;
+                }
+            }
+
+            return max_reward;
+        } else {
+            score = 0.0f;
+            std::array<unsigned int, 4> positions = getPlacingPosition(player_move);
+
+            if (bag == 0) {
+                bag = 0x7;
+            }
+
+            int placing_position = 0;
+            for (int i = 0; i < 4; ++i) {
+                placing_position += (board(positions[i]) == 0);
+            }
+
+            int bag_size = 0;
+            for (int tile = 1; tile <= 3; ++tile) {
+                if (((1 << (tile - 1)) & bag) != 0) {
+                    bag_size++;
+                }
+            }
+
+            for (int i = 0; i < 4; ++i) {
+                if (board(positions[i]) != 0) continue;
+
+                for (int tile = 1; tile <= 3; ++tile) {
+                    if (((1 << (tile - 1)) & bag) != 0) {
+                        Board64 child = Board64(board);
+                        child.Place(positions[i], tile);
+
+                        int child_bag = bag ^(1 << (tile - 1));
+
+                        score += ((1.0f / placing_position) * (1.0f / bag_size)) *
+                                 Expectimax(child, depth - 1, -1, child_bag);
+                    }
+                }
+            }
+        }
+    }
+
+    std::vector<int> getPlacingPosition(int player_move) {
+        switch (player_move) {
+            case 0:
+                return {12, 13, 14, 15};
+            case 1:
+                return {0, 4, 8, 12};
+            case 2:
+                return {0, 1, 2, 3};
+            case 3:
+                return {3, 7, 11, 15};
+            default:
+                return {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+        }
     }
 
     float V(Board64 board, int id) {
