@@ -394,7 +394,7 @@ class TdLambdaPlayer : public Player {
 public:
     TdLambdaPlayer(const std::string &args = "") : Player("name=TDLambda role=Player " + args),
                                                    lambda_(0.5), learning_rate_(0.0025), board_appears_3072_(0),
-                                                   current_tuple_(0), board_appears_1536_(0), tuple_size_(3),
+                                                   tuple_id_(0), board_appears_1536_(0), tuple_size_(3),
                                                    count_after_3072_game_(0), count_after_1536_game_(0) {
 
         tuple_network_ = std::vector<NTupleNetwork>(tuple_size_);
@@ -424,96 +424,67 @@ public:
     }
 
     void Reset() {
-        current_tuple_ = 0;
+        tuple_id_ = 0;
         board_appears_1536_ = 0;
         board_appears_3072_ = 0;
     }
 
     void Learn(const Episode &episode) {
         std::vector<Episode::Move> moves = episode.GetMoves();
-
-//        UpdateTupleValue(moves, moves.size() - 2, -V(moves[moves.size()-2].board));
-
-//        for (int i = moves.size() - 4; i > 9; i -= 2) {
-//            Episode::Move state_s_t1 = moves[i];
-//            Episode::Move state_t2 = moves[i+1];
-//            Episode::Move state_s_t2 = moves[i + 2];
-//
-//            board_t board_t1 = state_s_t1.board;
-//            board_t board_t2 = state_s_t2.board;
-//
-//            float reward = GetReward(state_t2.board, state_s_t2.board);
-//            float delta = reward + (V(board_t2) - V(board_t1));
-//
-//            UpdateTupleValue(moves, i, delta);
-//
-//            if ((current_tuple_ == 2 && board_t1 == board_appears_3072_) ||
-//                (current_tuple_ == 1 && board_t1 == board_appears_1536_)) {
-//                current_tuple_--;
-//            }
-//        }
+        int id = 0;
 
         for (int i = 9; i < moves.size(); i += 2) {
-            float score = 0;
-            float total_reward = 0;
-            float ld = 1;
+            Board64 after_state(moves[i].board, moves[i].hint);
+            id = GetTupleId(moves[i].board);
 
-            bool is_appears_1536 = false;
-            bool is_appears_3072 = false;
+            if (i + 2 < moves.size()) {
+                Board64 after_state_next = Board64(moves[i+2].board, moves[i+2].hint);
+//                tuple_network_[id].UpdateValue(after_state, learning_rate_ * (moves[i+2].reward +
+//                                                                               V(after_state_next,
+//                                                                                 GetTupleId(after_state_next.GetBoard()))
+//                                                                               - V(after_state, id)));
 
-            for (int j = 0; j < 5 && (i + j * 2) < moves.size(); j++) {
+                tuple_network_[id].UpdateValue(after_state, learning_rate_ * (GetReward(i, moves)- V(after_state, id)));
+            } else {
+                tuple_network_[id].UpdateValue(after_state, learning_rate_ * (- V(after_state, id)));
+            }
+        }
+    }
 
-                if (Board64(moves[i + j].board).GetMaxTile() >= 13) {
-                    is_appears_1536 = is_appears_3072 = true;
-                } else if (Board64(moves[i + j].board).GetMaxTile() >= 12) {
-                    is_appears_1536 = true;
-                }
+    int GetTupleId(board_t board) {
+        if (Board64(board).GetMaxTile() >= 13)
+            return 2;
+        if (Board64(board).GetMaxTile() >= 12)
+            return 1;
 
-                float weight = ld;
-                if (j != 4) {
-                    weight *= (1 - lambda_);
-                }
+        return 0;
+    }
+
+    float GetReward(int t, std::vector<Episode::Move> moves) {
+        reward_t reward = 0;
+        float ld = 1;
+        for (int n = 1; n <= 5; n++) {
+            reward += ld * R(n, t, moves);
+            if(n <= 3) {
                 ld *= lambda_;
-
-                total_reward += (GetBoardScore(moves[i+j].board) - GetBoardScore(moves[i+j-1].board));
-                score += weight * (total_reward + V(moves[i + j].board, is_appears_1536 + is_appears_3072));
-            }
-
-            is_appears_1536 = false;
-            is_appears_3072 = false;
-            if (Board64(moves[i].board).GetMaxTile() >= 13) {
-                is_appears_1536 = is_appears_3072 = true;
-            } else if (Board64(moves[i].board).GetMaxTile() >= 12) {
-                is_appears_1536 = true;
-            }
-
-            Board64 board = Board64(moves[i].board, moves[i].hint);
-            tuple_network_[is_appears_1536 + is_appears_3072].UpdateValue(board,
-                                                                          learning_rate_ * (score - V(moves[i].board,
-                                                                                                      is_appears_1536 +
-                                                                                                      is_appears_3072)));
-        }
-    }
-
-    void UpdateTupleValue(std::vector<Episode::Move> moves, int t, float delta) {
-        int current = current_tuple_;
-        for (int k = t, count = 0; k > 9 && count < limit_update_; k -= 2, count++) {
-            Episode::Move state_t1 = moves[k];
-
-            board_t board_t1 = state_t1.board;
-            Board64 board = Board64(state_t1.board, state_t1.hint);
-
-            tuple_network_[current].UpdateValue(board, learning_rate_ * pow(lambda_, t - k) * delta);
-
-            if ((current == 2 && board_t1 == board_appears_3072_) ||
-                (current == 1 && board_t1 == board_appears_1536_)) {
-                current--;
             }
         }
+
+        return (1 - lambda_) * reward;
     }
 
-    float GetReward(board_t board_t1, board_t board_t2) {
-        return GetBoardScore(board_t2) - GetBoardScore(board_t1);
+    float R(int n, int t, std::vector<Episode::Move> moves) {
+        reward_t reward = 0;
+        int k = 0;
+        for(k = 0; k <= n-1 && t + 2 * k < moves.size(); k++) {
+            reward += moves[t + 2 * k].reward;
+        }
+        if(t + 2 * k < moves.size()) {
+            Board64 board(moves[t + 2 * k].board, moves[t + 2 * k].hint);
+            reward += V(board, GetTupleId(board.GetBoard()));
+        }
+
+        return reward;
     }
 
     bool FindTile(Board64 board, int tile) {
@@ -538,14 +509,14 @@ public:
     }
 
     Action TakeAction(const Board64 &board, const Action &evil_action) override {
-        if (current_tuple_ < 1 && FindTile(board, 12)) {
-            current_tuple_ = 1;
+        if (tuple_id_ < 1 && FindTile(board, 12)) {
+            tuple_id_ = 1;
             count_after_1536_game_++;
             board_appears_1536_ = board.GetBoard();
         }
 
-        if (current_tuple_ < 2 && FindTile(board, 13)) {
-            current_tuple_ = 2;
+        if (tuple_id_ < 2 && FindTile(board, 13)) {
+            tuple_id_ = 2;
             count_after_3072_game_++;
             board_appears_3072_ = board.GetBoard();
         }
@@ -558,14 +529,13 @@ public:
         int chosen_direction = -1;
 
         for (int direction : directions_) {
-            Board64 temp_board = board;
+            Board64 after_state = board;
 
-            temp_board.Slide(direction);
-            if (temp_board == board) continue;
+            reward_t reward = after_state.Slide(direction);
 
-            float score =
-                    (GetBoardScore(temp_board.GetBoard()) - GetBoardScore(board.GetBoard())) + V(temp_board.GetBoard());
+            if (after_state == board) continue;
 
+            float score = reward + V(after_state);
             if (score > max_score) {
                 max_score = score;
                 chosen_direction = direction;
@@ -579,12 +549,12 @@ public:
         return Action();
     }
 
-    float V(board_t board, int tuple_id) {
-        return tuple_network_[tuple_id].GetValue(board);
+    float V(Board64 board, int id) {
+        return tuple_network_[id].GetValue(board);
     }
 
-    float V(board_t board) {
-        return tuple_network_[current_tuple_].GetValue(board);
+    float V(Board64 board) {
+        return V(board, tuple_id_);
     }
 
     void save() {
@@ -612,7 +582,7 @@ public:
 
 private:
     int limit_update_;
-    int current_tuple_;
+    int tuple_id_;
     int tuple_size_;
     board_t board_appears_1536_;
     board_t board_appears_3072_;

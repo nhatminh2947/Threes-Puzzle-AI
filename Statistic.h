@@ -117,7 +117,7 @@ public:
 	}
 
 	bool IsBackup() {
-		return count_ % block_ == 0;
+		return count_ % 10000 == 0;
 	}
 
 	size_t GetCount() {

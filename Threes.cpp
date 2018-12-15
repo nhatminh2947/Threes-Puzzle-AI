@@ -75,7 +75,6 @@ int main(int argc, const char *argv[]) {
 
         stat.OpenEpisode(player.name() + ":" + evil.name());
         Episode &game = stat.Back();
-        int count = 0;
         while (true) {
 
             Agent &agent = game.TakeTurns(player, evil);
@@ -83,8 +82,6 @@ int main(int argc, const char *argv[]) {
 
             if (!game.ApplyAction(move)) break;
             if (agent.CheckForWin(game.state())) break;
-
-            count++;
         }
 
         Agent &win = game.TakeLastTurns(player, evil);
