@@ -238,11 +238,12 @@ public:
             id = GetTupleId(after_state);
 
             if (i + 2 < moves.size()) {
-                Board64 after_state_next = Board64(moves[i+2].board, moves[i+2].hint);
+                Board64 after_state_next = Board64(moves[i + 2].board, moves[i + 2].hint);
 
-                tuple_network_[id].UpdateValue(after_state, learning_rate_ * (GetReward(i, moves)- V(after_state, id)));
+                tuple_network_[id].UpdateValue(after_state,
+                                               learning_rate_ * (GetReward(i, moves) - V(after_state, id)));
             } else {
-                tuple_network_[id].UpdateValue(after_state, learning_rate_ * (- V(after_state, id)));
+                tuple_network_[id].UpdateValue(after_state, learning_rate_ * (-V(after_state, id)));
             }
         }
     }
@@ -261,7 +262,7 @@ public:
         float ld = 1;
         for (int n = 1; n <= 5; n++) {
             reward += ld * R(n, t, moves);
-            if(n <= 3) {
+            if (n <= 3) {
                 ld *= lambda_;
             }
         }
@@ -272,10 +273,10 @@ public:
     float R(int n, int t, std::vector<Episode::Move> moves) {
         reward_t reward = 0;
         int k = 0;
-        for(k = 0; k <= n-1 && t + 2 * k < moves.size(); k++) {
+        for (k = 0; k <= n - 1 && t + 2 * k < moves.size(); k++) {
             reward += moves[t + 2 * k].reward;
         }
-        if(t + 2 * k < moves.size()) {
+        if (t + 2 * k < moves.size()) {
             Board64 board(moves[t + 2 * k].board, moves[t + 2 * k].hint);
             reward += V(board, GetTupleId(board));
         }
@@ -295,8 +296,8 @@ public:
     }
 
     Action TakeAction(const Board64 &board, const Action &evil_action) override {
-        if(GetTupleId(board) == 1) count_after_1536_game_++;
-        if(GetTupleId(board) == 2) count_after_3072_game_++;
+        if (GetTupleId(board) == 1) count_after_1536_game_++;
+        if (GetTupleId(board) == 2) count_after_3072_game_++;
 
         int tile = Action::Place(evil_action).tile();
         bag_[tile]--;
@@ -310,11 +311,23 @@ public:
 
         if (max_tile <= 11) {
             depth = 3;
-        } else {
+        } else if (max_tile == 12) {
             depth = 5;
+        } else if (max_tile > 12) {
+            depth = 7;
         }
 
-        std::pair<int,int> direction_reward = Expectimax(1, board, -1, bag_, depth);
+//        if (max_tile <= 8) {
+//            depth = 1;
+//        } else if (max_tile <= 11) {
+//            depth = 3;
+//        } else if (max_tile == 12) {
+//            depth = 5;
+//        } else if (max_tile > 12) {
+//            depth = 7;
+//        }
+
+        std::pair<int, int> direction_reward = Expectimax(1, board, -1, bag_, depth);
 
         if (direction_reward.first != -1) {
             return Action::Slide(direction_reward.first);
@@ -323,12 +336,12 @@ public:
         return Action();
     }
 
-    std::pair<int,int> Expectimax(int state, Board64 board, int player_move, std::array<int, 4> bag, int depth) {
+    std::pair<int, int> Expectimax(int state, Board64 board, int player_move, std::array<int, 4> bag, int depth) {
         if (board.IsTerminal()) {
             return std::make_pair(-1, 0);
         }
 
-        if(depth == 0) {
+        if (depth == 0) {
             return std::make_pair(-1, V(board, GetTupleId(board)));
         }
 
@@ -340,9 +353,9 @@ public:
                 reward_t reward = child.Slide(d);
                 if (child == board) continue;
 
-                std::pair<int,int> direction_reward = Expectimax(1 - state, child, d, bag, depth - 1);
+                std::pair<int, int> direction_reward = Expectimax(1 - state, child, d, bag, depth - 1);
 
-                if(reward + direction_reward.second > max_reward) {
+                if (reward + direction_reward.second > max_reward) {
                     max_reward = reward + direction_reward.second;
                     direction = d;
                 }
@@ -361,7 +374,7 @@ public:
                 }
             }
 
-            for(int position : positions) {
+            for (int position : positions) {
                 if (board(position) != 0) continue;
 
                 Board64 child = board;
@@ -370,7 +383,7 @@ public:
                 for (int tile = 1; tile <= 3; ++tile) {
                     if (bag[tile] != 0) {
                         child.SetHint(tile);
-                        std::pair<int,int> direction_reward = Expectimax(1 - state, child, -1, bag, depth - 1);
+                        std::pair<int, int> direction_reward = Expectimax(1 - state, child, -1, bag, depth - 1);
 
                         score += reward;
                         score += direction_reward.second;
