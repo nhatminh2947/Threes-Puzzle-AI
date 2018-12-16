@@ -87,27 +87,13 @@ public:
     }
 
     void save(std::ofstream &out) override {
-        for (int i = 0; i < 2; ++i) {
-            out << lookup_table_[i].size();
-            for (float w : lookup_table_[i]) {
-                out << " " << w;
-            }
-            out << std::endl;
-        }
-//        out.write(reinterpret_cast<char*>(&lookup_table_[0]), (SIX_TUPLE_AND_HINT_MASK+1)*sizeof(double));
-//        out.write(reinterpret_cast<char*>(&lookup_table_[1]), (SIX_TUPLE_AND_HINT_MASK+1)*sizeof(double));
+        out.write(reinterpret_cast<char *>(&lookup_table_[0][0]), (SIX_TUPLE_AND_HINT_SIZE) * sizeof(float));
+        out.write(reinterpret_cast<char *>(&lookup_table_[1][0]), (SIX_TUPLE_AND_HINT_SIZE) * sizeof(float));
     }
 
     void load(std::ifstream &in) override {
-        for (int i = 0; i < 2; ++i) {
-            int size = 0;
-            in >> size;
-            for (int j = 0; j < size; ++j) {
-                in >> lookup_table_[i][j];
-            }
-        }
-//        in.read(reinterpret_cast<char*>(&lookup_table_[0]), (SIX_TUPLE_AND_HINT_MASK+1) * sizeof(double));
-//        in.read(reinterpret_cast<char*>(&lookup_table_[1]), (SIX_TUPLE_AND_HINT_MASK+1) * sizeof(double));
+        in.read(reinterpret_cast<char *>(&lookup_table_[0][0]), (SIX_TUPLE_AND_HINT_SIZE) * sizeof(float));
+        in.read(reinterpret_cast<char *>(&lookup_table_[1][0]), (SIX_TUPLE_AND_HINT_SIZE) * sizeof(float));
     }
 
 private:
@@ -175,49 +161,15 @@ public:
         return total_value;
     }
 
-    friend std::ostream &operator<<(std::ostream &out, const RectangleTuple &obj) {
-        for (int i = 0; i < 2; ++i) {
-            out << obj.lookup_table_[i].size();
-            for (float w : obj.lookup_table_[i]) {
-                out << " " << w;
-            }
-            out << std::endl;
-        }
-
-        return out;
-    }
-
-    /*
-     * Read data from stream object and fill it in member variables
-     */
-    friend std::istream &operator>>(std::istream &in, RectangleTuple &obj) {
-        for (int i = 0; i < 2; ++i) {
-            int size = 0;
-            in >> size;
-            for (int j = 0; j < size; ++j) {
-                in >> obj.lookup_table_[i][j];
-            }
-        }
-    }
-
     void save(std::ofstream &out) override {
-//        out.write(reinterpret_cast<char*>(this), 2 * (SIX_TUPLE_AND_HINT_MASK+1) * sizeof(float));
-        out.write(reinterpret_cast<char *>(&lookup_table_[0]), (SIX_TUPLE_AND_HINT_SIZE) * sizeof(float));
-        out.write(reinterpret_cast<char *>(&lookup_table_[1]), (SIX_TUPLE_AND_HINT_SIZE) * sizeof(float));
+        out.write(reinterpret_cast<char *>(&lookup_table_[0][0]), (SIX_TUPLE_AND_HINT_SIZE) * sizeof(float));
+        out.write(reinterpret_cast<char *>(&lookup_table_[1][0]), (SIX_TUPLE_AND_HINT_SIZE) * sizeof(float));
     }
 
     void load(std::ifstream &in) override {
-        for (int i = 0; i < 2; ++i) {
-            int size = 0;
-            in >> size;
-            for (int j = 0; j < size; ++j) {
-                in >> lookup_table_[i][j];
-            }
-        }
-//        in.read(reinterpret_cast<char*>(&lookup_table_[0]), (SIX_TUPLE_AND_HINT_MASK+1) * sizeof(double));
-//        in.read(reinterpret_cast<char*>(&lookup_table_[1]), (SIX_TUPLE_AND_HINT_MASK+1) * sizeof(double));
+        in.read(reinterpret_cast<char *>(&lookup_table_[0][0]), (SIX_TUPLE_AND_HINT_SIZE) * sizeof(float));
+        in.read(reinterpret_cast<char *>(&lookup_table_[1][0]), (SIX_TUPLE_AND_HINT_SIZE) * sizeof(float));
     }
-
 
 private:
     std::array<std::array<float, SIX_TUPLE_AND_HINT_SIZE>, 2> lookup_table_;
@@ -256,19 +208,11 @@ public:
     }
 
     void save(std::ofstream &out) override {
-        out << lookup_table_.size();
-        for (float w : lookup_table_) {
-            out << " " << w;
-        }
-        out << std::endl;
+        out.write(reinterpret_cast<char *>(&lookup_table_[0]), 4194304 * sizeof(float));
     }
 
     void load(std::ifstream &in) override {
-        int size = 0;
-        in >> size;
-        for (int j = 0; j < size; ++j) {
-            in >> lookup_table_[j];
-        }
+        in.read(reinterpret_cast<char *>(&lookup_table_[0]), 4194304 * sizeof(float));
     }
 
 private:
@@ -300,19 +244,11 @@ public:
     }
 
     void save(std::ofstream &out) override {
-        out << lookup_table_.size();
-        for (float w : lookup_table_) {
-            out << " " << w;
-        }
-        out << std::endl;
+        out.write(reinterpret_cast<char *>(&lookup_table_[0]), 68 * sizeof(float));
     }
 
     void load(std::ifstream &in) override {
-        int size = 0;
-        in >> size;
-        for (int j = 0; j < size; ++j) {
-            in >> lookup_table_[j];
-        }
+        in.read(reinterpret_cast<char *>(&lookup_table_[0]), 68 * sizeof(float));
     }
 
 private:
@@ -344,19 +280,11 @@ public:
     }
 
     void save(std::ofstream &out) override {
-        out << lookup_table_.size();
-        for (float w : lookup_table_) {
-            out << " " << w;
-        }
-        out << std::endl;
+        out.write(reinterpret_cast<char *>(&lookup_table_[0]), 262144 * sizeof(float));
     }
 
     void load(std::ifstream &in) override {
-        int size = 0;
-        in >> size;
-        for (int j = 0; j < size; ++j) {
-            in >> lookup_table_[j];
-        }
+        in.read(reinterpret_cast<char *>(&lookup_table_[0]), 262144 * sizeof(float));
     }
 
 private:
@@ -395,19 +323,11 @@ public:
     }
 
     void save(std::ofstream &out) override {
-        out << lookup_table_.size();
-        for (float w : lookup_table_) {
-            out << " " << w;
-        }
-        out << std::endl;
+        out.write(reinterpret_cast<char *>(&lookup_table_[0]), 68 * sizeof(float));
     }
 
     void load(std::ifstream &in) override {
-        int size = 0;
-        in >> size;
-        for (int j = 0; j < size; ++j) {
-            in >> lookup_table_[j];
-        }
+        in.read(reinterpret_cast<char *>(&lookup_table_[0]), 68 * sizeof(float));
     }
 
 private:
@@ -446,19 +366,11 @@ public:
     }
 
     void save(std::ofstream &out) override {
-        out << lookup_table_.size();
-        for (float w : lookup_table_) {
-            out << " " << w;
-        }
-        out << std::endl;
+        out.write(reinterpret_cast<char *>(&lookup_table_[0]), 68 * sizeof(float));
     }
 
     void load(std::ifstream &in) override {
-        int size = 0;
-        in >> size;
-        for (int j = 0; j < size; ++j) {
-            in >> lookup_table_[j];
-        }
+        in.read(reinterpret_cast<char *>(&lookup_table_[0]), 68 * sizeof(float));
     }
 
 private:

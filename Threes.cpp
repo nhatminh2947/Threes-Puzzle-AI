@@ -69,14 +69,13 @@ int main(int argc, const char *argv[]) {
     TdLambdaPlayer player(play_args);
     RandomEnvironment evil(evil_args);
 
-    while (!player.TrainingFinished(2, 10000000)) {
+    while (!stat.IsFinished()) {
         player.OpenEpisode("~:" + evil.name());
         evil.OpenEpisode(player.name() + ":~");
 
         stat.OpenEpisode(player.name() + ":" + evil.name());
         Episode &game = stat.Back();
         while (true) {
-
             Agent &agent = game.TakeTurns(player, evil);
             Action move = agent.TakeAction(game.state(), move);
 
@@ -91,7 +90,11 @@ int main(int argc, const char *argv[]) {
             player.Learn(game);
 
             if (stat.IsBackup()) {
-                //player.save();
+                player.save();
+            }
+
+            if (stat.NGames() >= total / 2) {
+                player.decreaseLearningRate10Times();
             }
         }
 

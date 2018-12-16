@@ -117,10 +117,10 @@ public:
 	}
 
 	bool IsBackup() {
-		return count_ % 10000 == 0;
+		return count_ % BACKUP == 0;
 	}
 
-	size_t GetCount() {
+	size_t NGames() {
 	    return count_;
 	}
 

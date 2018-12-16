@@ -202,12 +202,10 @@ private:
 class TdLambdaPlayer : public Player {
 public:
     TdLambdaPlayer(const std::string &args = "") : Player("name=TDLambda role=Player " + args),
-                                                   lambda_(0.5), learning_rate_(0.0025), tuple_size_(3), depth_(1),
-                                                   count_after_3072_game_(0), count_after_1536_game_(0),
+                                                   lambda_(0.5), learning_rate_(0.0025), tuple_size_(3),
                                                    bag_({0, 4, 4, 4}) {
 
         tuple_network_ = std::vector<NTupleNetwork>(tuple_size_);
-        file_name_ = std::vector<std::string>(tuple_size_);
 
         if (meta_.find("load") != meta_.end()) {
             std::string file_name = meta_["load"].value;
@@ -218,15 +216,16 @@ public:
             learning_rate_ = float(meta_["alpha"]);
 
         if (meta_.find("save") != meta_.end()) { // pass save=... to save to a specific file
-            std::string file_name = meta_["save"].value;
-
-            for (int i = 0; i < tuple_size_; ++i) {
-                file_name_[i] = file_name.insert(file_name.size() - 4, std::to_string(i));
-            }
+            file_name_ = meta_["save"].value;
+            std::cout << file_name_ << std::endl;
         }
     };
 
     void CloseEpisode(const std::string &flag = "") override {
+    }
+
+    void decreaseLearningRate10Times() {
+        learning_rate_ /= 10;
     }
 
     void Learn(const Episode &episode) {
@@ -284,21 +283,18 @@ public:
         return reward;
     }
 
-    bool TrainingFinished(int stage, size_t limit = 5000000) {
-        switch (stage) {
-            case 1:
-                return count_after_1536_game_ > limit;
-            case 2:
-                return count_after_3072_game_ > limit;
-            default:
-                return false;
-        }
-    }
+//    bool TrainingFinished(int stage, size_t limit = 5000000) {
+//        switch (stage) {
+//            case 1:
+//                return count_after_1536_game_ > limit;
+//            case 2:
+//                return count_after_3072_game_ > limit;
+//            default:
+//                return false;
+//        }
+//    }
 
     Action TakeAction(const Board64 &board, const Action &evil_action) override {
-        if (GetTupleId(board) == 1) count_after_1536_game_++;
-        if (GetTupleId(board) == 2) count_after_3072_game_++;
-
         int tile = Action::Place(evil_action).tile();
         bag_[tile]--;
 
@@ -417,20 +413,25 @@ public:
 
     void save() {
         for (int i = 0; i < tuple_size_; ++i) {
-            std::ofstream save_stream(file_name_[i].c_str(), std::ios::out | std::ios::trunc);
+            std::string name = file_name_;
+            name.insert(name.size() - 4, std::to_string(i));
+
+            std::ofstream save_stream(name.c_str(), std::ios::out | std::ios::binary);
+
             if (!save_stream.is_open()) std::exit(-1);
 
             tuple_network_[i].save(save_stream);
             save_stream.close();
+            std::cout << "saved tuple_network " << i << std::endl;
         }
     }
 
     void load(std::string file_name) {
-        std::string fn = file_name;
         for (int i = 0; i < tuple_size_; ++i) {
+            std::string fn = file_name;
             fn.insert(fn.size() - 4, std::to_string(i));
 
-            std::ifstream load_stream(fn.c_str());
+            std::ifstream load_stream(fn.c_str(), std::ios::in | std::ios::binary);
             if (!load_stream.is_open()) std::exit(-1);
 
             tuple_network_[i].load(load_stream);
@@ -440,12 +441,9 @@ public:
 
 private:
     int tuple_size_;
-    size_t count_after_3072_game_;
-    size_t count_after_1536_game_;
     float learning_rate_;
     float lambda_;
-    int depth_;
-    std::vector<std::string> file_name_;
+    std::string file_name_;
     std::vector<NTupleNetwork> tuple_network_;
     std::array<int, 4> bag_;
 
