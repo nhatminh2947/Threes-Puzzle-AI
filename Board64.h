@@ -220,10 +220,10 @@ public:
         return reward;
     }
 
-    float GetHeuristicScore() {
-        return ScoreHelper(board_, heur_score_table) +
-               ScoreHelper(::Transpose(board_), heur_score_table);
-    }
+//    float GetHeuristicScore() {
+//        return ScoreHelper(board_, heur_score_table) +
+//               ScoreHelper(::Transpose(board_), heur_score_table);
+//    }
 
     cell_t GetMaxTile() {
         return std::max(row_max_table[(board_ >> 0) & ROW_MASK],
@@ -304,10 +304,9 @@ public:
 
 private:
     board_t board_;
-    cell_t largest_tile_;
     int hint_;
 
-    row_t ReverseRow(int row_id) {
+    void ReverseRow(int row_id) {
         row_t row = GetRow(row_id);
         row = (row & 0xf000) >> 12 | (row & 0x0f00) >> 4 | (row & 0x00f0) << 4 | (row & 0x000f) << 12;
 

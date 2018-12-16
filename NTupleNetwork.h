@@ -39,24 +39,24 @@ public:
     board_t GetIndex(Board64 board, int id) override {
         board_t c1 = board.GetCol(id);
         board_t c2 = board.GetCol(id + 1);
-        board_t index = ((std::min(4, board.GetHint()) - 1) << 24) | ((c1 & 0xffff) << 8) | ((c2 & 0xff00) >> 8);
+        board_t index = ((((c1 & 0xffff) << 8) | ((c2 & 0xff00) >> 8)) << 2) | (std::min(4, board.GetHint()) - 1);
 
         return index;
     }
 
     void UpdateValue(Board64 board, float delta) override {
-        Board64 b(board);
+        Board64 b = board;
 
         for (int i = 0; i < 4; ++i) {
             for (int j = 0; j < 2; j++) {
-                Board64 temp_board(b.GetBoard());
+                Board64 temp_board = b;
 
-                board_t index = GetIndex(temp_board.GetBoard(), j);
+                board_t index = GetIndex(temp_board, j);
                 lookup_table_[j][index] += delta;
 
                 temp_board.ReflectVertical();
 
-                index = GetIndex(temp_board.GetBoard(), j);
+                index = GetIndex(temp_board, j);
                 lookup_table_[j][index] += delta;
             }
             b.TurnRight();
@@ -66,18 +66,18 @@ public:
     float GetValue(Board64 board) override {
         float total_value = 0.0;
 
-        Board64 b(board);
+        Board64 b = board;
 
         for (int i = 0; i < 4; ++i) {
             for (int j = 0; j < 2; ++j) {
-                Board64 temp_board(b.GetBoard());
+                Board64 temp_board = b;
 
-                board_t index = GetIndex(temp_board.GetBoard(), j);
+                board_t index = GetIndex(temp_board, j);
                 total_value += lookup_table_[j][index];
 
                 temp_board.ReflectVertical();
 
-                index = GetIndex(temp_board.GetBoard(), j);
+                index = GetIndex(temp_board, j);
                 total_value += lookup_table_[j][index];
             }
             b.TurnRight();
@@ -111,7 +111,7 @@ public:
     }
 
 private:
-    std::array<std::array<float, SIX_TUPLE_AND_HINT_MASK + 1>, 2> lookup_table_;
+    std::array<std::array<float, SIX_TUPLE_AND_HINT_SIZE>, 2> lookup_table_;
 };
 
 class RectangleTuple : public Tuple {
@@ -124,24 +124,24 @@ public:
     board_t GetIndex(Board64 board, int id) override {
         board_t c1 = board.GetCol(id);
         board_t c2 = board.GetCol(id + 1);
-        board_t index = ((std::min(4, board.GetHint()) - 1) << 24) | ((c1 & 0xfff) << 12ULL) | (c2 & 0xfff);
+        board_t index = ((c1 & 0xfff) << 12ULL) | (c2 & 0xfff);
 
-        return index;
+        return (std::min(4, board.GetHint()) - 1) | (index << 2);
     }
 
     void UpdateValue(Board64 board, float delta) override {
-        Board64 b(board);
+        Board64 b = board;
 
         for (int i = 0; i < 4; ++i) {
             for (int j = 0; j < 2; j++) {
-                Board64 temp_board(b.GetBoard());
+                Board64 temp_board = b;
 
-                board_t index1 = GetIndex(temp_board.GetBoard(), j);
+                board_t index1 = GetIndex(temp_board, j);
                 lookup_table_[j][index1] += delta;
 
                 temp_board.ReflectVertical();
 
-                board_t index2 = GetIndex(temp_board.GetBoard(), j);
+                board_t index2 = GetIndex(temp_board, j);
                 if (j == 1 && index1 != index2) {
                     lookup_table_[j][index2] += delta;
                 }
@@ -153,18 +153,18 @@ public:
     float GetValue(Board64 board) override {
         float total_value = 0.0;
 
-        Board64 b(board);
+        Board64 b = board;
 
         for (int i = 0; i < 4; ++i) {
             for (int j = 0; j < 2; ++j) {
-                Board64 temp_board(b.GetBoard());
+                Board64 temp_board = b;
 
-                board_t index1 = GetIndex(temp_board.GetBoard(), j);
+                board_t index1 = GetIndex(temp_board, j);
                 total_value += lookup_table_[j][index1];
 
                 temp_board.ReflectVertical();
 
-                board_t index2 = GetIndex(temp_board.GetBoard(), j);
+                board_t index2 = GetIndex(temp_board, j);
                 if (j == 1 && index1 != index2) {
                     total_value += lookup_table_[j][index2];
                 }
@@ -202,8 +202,8 @@ public:
 
     void save(std::ofstream &out) override {
 //        out.write(reinterpret_cast<char*>(this), 2 * (SIX_TUPLE_AND_HINT_MASK+1) * sizeof(float));
-        out.write(reinterpret_cast<char*>(&lookup_table_[0]), (SIX_TUPLE_AND_HINT_MASK+1)*sizeof(double));
-        out.write(reinterpret_cast<char*>(&lookup_table_[1]), (SIX_TUPLE_AND_HINT_MASK+1)*sizeof(double));
+        out.write(reinterpret_cast<char *>(&lookup_table_[0]), (SIX_TUPLE_AND_HINT_SIZE) * sizeof(float));
+        out.write(reinterpret_cast<char *>(&lookup_table_[1]), (SIX_TUPLE_AND_HINT_SIZE) * sizeof(float));
     }
 
     void load(std::ifstream &in) override {
@@ -220,7 +220,7 @@ public:
 
 
 private:
-    std::array<std::array<float, SIX_TUPLE_AND_HINT_MASK + 1>, 2> lookup_table_;
+    std::array<std::array<float, SIX_TUPLE_AND_HINT_SIZE>, 2> lookup_table_;
 };
 
 class ValuableTileTuple : public Tuple {
@@ -230,7 +230,7 @@ public:
     }
 
     board_t GetIndex(Board64 board, int id) override {
-        Board64 b(board);
+        Board64 b = board;
 
         int count_tile[15];
         std::fill(count_tile, count_tile + 15, 0);
@@ -241,7 +241,7 @@ public:
 
         board_t index = 0;
         for (int i = 0; i < 5; i++) {
-            index = (index << 3) | (count_tile[i + 10]);
+            index = (index << 4) | (count_tile[i + 10]);
         }
 
         return (std::min(4, board.GetHint()) - 1) | (index << 2);
@@ -272,7 +272,7 @@ public:
     }
 
 private:
-    std::array<float, 131072> lookup_table_; // (hint-tile, 10-tile, 11-tile, 12-tile, 13-tile, 14-tile)
+    std::array<float, 4194304> lookup_table_; // (hint-tile, 10-tile, 11-tile, 12-tile, 13-tile, 14-tile)
 };
 
 class EmptyTileTuple : public Tuple {
@@ -288,7 +288,7 @@ public:
             index += (board(i) == 0);
         }
 
-        return (std::min(4, board.GetHint()) - 1) * 17 + index;
+        return (index << 2) | (std::min(4, board.GetHint()) - 1);
     }
 
     void UpdateValue(Board64 board, float delta) override {
@@ -360,7 +360,7 @@ public:
     }
 
 private:
-    std::array<float, 131072> lookup_table_;
+    std::array<float, 262144> lookup_table_;
 };
 
 class MergeableTilesTuple : public Tuple {
@@ -370,21 +370,20 @@ public:
     }
 
     board_t GetIndex(Board64 board, int id) override {
-        Board64 b(board);
         board_t index = 0;
 
         for (int i = 0; i < 16; ++i) {
-            if (b(i) == 0) continue;
+            if (board(i) == 0) continue;
 
-            if ((i + 1) % 4 != 0 && b(i) == b(i + 1)) {
+            if ((i + 1) % 4 != 0 && board(i) == board(i + 1)) {
                 index++;
             }
-            if ((i + 4) / 4 < 4 && b(i) == b(i + 4)) {
+            if ((i + 4) / 4 < 4 && board(i) == board(i + 4)) {
                 index++;
             }
         }
 
-        return (std::min(4, board.GetHint()) - 1) * 17 + index;
+        return (index << 2) | (std::min(4, board.GetHint()) - 1);
     }
 
     void UpdateValue(Board64 board, float delta) override {
@@ -422,21 +421,20 @@ public:
     }
 
     board_t GetIndex(Board64 board, int id) override {
-        Board64 b(board);
         board_t index = 0;
 
         for (int i = 0; i < 16; ++i) {
-            if (b(i) < 10) continue;
+            if (board(i) < 10) continue;
 
-            if ((i + 1) % 4 != 0 && (b(i) - 1 == b(i + 1) || b(i) + 1 == b(i + 1))) {
+            if ((i + 1) % 4 != 0 && (board(i) - 1 == board(i + 1) || board(i) + 1 == board(i + 1))) {
                 index++;
             }
-            if ((i + 4) / 4 < 4 && (b(i) - 1 == b(i + 1) || b(i) + 1 == b(i + 1))) {
+            if ((i + 4) / 4 < 4 && (board(i) - 1 == board(i + 1) || board(i) + 1 == board(i + 1))) {
                 index++;
             }
         }
 
-        return (std::min(4, board.GetHint()) - 1) * 17 + index;
+        return (index << 2) | (std::min(4, board.GetHint()) - 1);
     }
 
     void UpdateValue(Board64 board, float delta) override {

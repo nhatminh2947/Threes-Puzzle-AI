@@ -199,208 +199,15 @@ private:
     std::uniform_int_distribution<int> popup_;
 };
 
-/**
- * dummy player
- * select a legal action randomly
- */
-
-class RandomPlayer : public RandomAgent {
-
-public:
-    RandomPlayer(const std::string &args = "") : RandomAgent("name=dummy role=Player " + args),
-                                                 directions_({0, 1, 2, 3}) {}
-
-    Action TakeAction(const Board64 &board, const Action &evil_action) override {
-        std::shuffle(directions_.begin(), directions_.end(), engine_);
-        for (int direction : directions_) {
-            reward_t reward = Board64(board).Slide(direction);
-            if (reward != -1) return Action::Slide(direction);
-        }
-        return Action();
-    }
-
-private:
-    std::array<int, 4> directions_;
-};
-
-class GreedyPlayer : public Player {
-public:
-    explicit GreedyPlayer(const std::string &args = "") : Player("name=greedy role=Player " + args) {}
-
-    Action TakeAction(const Board64 &board, const Action &evil_action) override {
-        int chosen_direction = -1;
-        float max_score = INT64_MIN;
-
-        for (int direction : directions_) {
-            Board64 greedy_board = board;
-
-            reward_t score = greedy_board.Slide(direction);
-
-            if (greedy_board == board) continue;
-            float heuristic_score = greedy_board.GetHeuristicScore() + greedy_board.GetMaxTile() * 10;
-
-            if (heuristic_score > max_score) {
-                chosen_direction = direction;
-                max_score = heuristic_score;
-            }
-        }
-
-        if (chosen_direction != -1) {
-            return Action::Slide(chosen_direction);
-        }
-
-        return Action();
-    }
-};
-
-class ExpectimaxPlayer : public Player {
-public:
-    ExpectimaxPlayer(const std::string &args = "", int depth = 2, int bag = 0x7) : Player(
-            "name=Expectimax role=Player " + args),
-                                                                                   depth_(depth),
-                                                                                   bag_(bag) {}
-
-    Action TakeAction(const Board64 &board, const Action &evil_action) override {
-        float max_score = INT64_MIN;
-        int chosen_direction = -1;
-        int tile = Action::Place(evil_action).tile();
-
-        if (ok) {
-            bag_ = bag_ ^ (1 << (tile - 1));
-
-            if (bag_ == 0) {
-                bag_ = 0x7;
-            }
-        }
-
-        ok = true;
-
-        for (int direction : directions_) {
-            Board64 temp_board = board;
-
-            temp_board.Slide(direction);
-            if (temp_board == board) continue;
-
-            float score = Expectimax(temp_board, depth_, direction, bag_);
-
-            if (score > max_score) {
-                max_score = score;
-                chosen_direction = direction;
-            }
-        }
-
-        if (chosen_direction != -1) {
-            return Action::Slide(chosen_direction);
-        }
-
-        return Action();
-    }
-
-private:
-    float Expectimax(Board64 board, int depth, int player_move, int bag) {
-        if (IsTerminal(board)) {
-            return INT32_MIN;
-        }
-
-        if (depth == 0) {
-            return board.GetHeuristicScore();
-        }
-
-        float score;
-        if (player_move == -1) {
-            score = INT64_MIN;
-
-            for (int d = 0; d < 4; ++d) { //direction
-                Board64 child = Board64(board);
-                child.Slide(d);
-                if (child == board) continue;
-
-                score = fmaxf(score, Expectimax(child, depth - 1, d, bag));
-            }
-        } else {
-            score = 0.0f;
-            std::array<unsigned int, 4> positions = getPlacingPosition(player_move);
-
-            if (bag == 0) {
-                bag = 0x7;
-            }
-
-            int placing_position = 0;
-            for (int i = 0; i < 4; ++i) {
-                placing_position += (board(positions[i]) == 0);
-            }
-
-            int bag_size = 0;
-            for (int tile = 1; tile <= 3; ++tile) {
-                if (((1 << (tile - 1)) & bag) != 0) {
-                    bag_size++;
-                }
-            }
-
-            for (int i = 0; i < 4; ++i) {
-                if (board(positions[i]) != 0) continue;
-
-                for (int tile = 1; tile <= 3; ++tile) {
-                    if (((1 << (tile - 1)) & bag) != 0) {
-                        Board64 child = Board64(board);
-                        child.Place(positions[i], tile);
-
-                        int child_bag = bag ^(1 << (tile - 1));
-
-                        score += ((1.0f / placing_position) * (1.0f / bag_size)) *
-                                 Expectimax(child, depth - 1, -1, child_bag);
-                    }
-                }
-            }
-
-        }
-
-        return score;
-    }
-
-    std::array<unsigned int, 4> getPlacingPosition(int player_move) {
-        if (player_move == 0) {
-            return {12, 13, 14, 15};
-        }
-
-        if (player_move == 1) {
-            return {0, 4, 8, 12};
-        }
-
-        if (player_move == 2) {
-            return {0, 1, 2, 3};
-        }
-
-        return {3, 7, 11, 15};
-    }
-
-    bool IsTerminal(Board64 &board) {
-        for (int direction = 0; direction < 4; ++direction) {
-            Board64 temp_board = Board64(board);
-            temp_board.Slide(direction);
-            if (temp_board != board)
-                return false;
-        }
-
-        return true;
-    }
-
-    int bag_;
-    int depth_;
-    bool ok = false;
-};
-
 class TdLambdaPlayer : public Player {
 public:
     TdLambdaPlayer(const std::string &args = "") : Player("name=TDLambda role=Player " + args),
-                                                   lambda_(0.5), learning_rate_(0.0025), board_appears_3072_(0),
-                                                   tuple_id_(0), board_appears_1536_(0), tuple_size_(3),
-                                                   count_after_3072_game_(0), count_after_1536_game_(0) {
+                                                   lambda_(0.5), learning_rate_(0.0025), tuple_size_(3), depth_(1),
+                                                   count_after_3072_game_(0), count_after_1536_game_(0),
+                                                   bag_({0, 4, 4, 4}) {
 
         tuple_network_ = std::vector<NTupleNetwork>(tuple_size_);
         file_name_ = std::vector<std::string>(tuple_size_);
-//        limit_update_ = int(ceil(log(0.1) / log(lambda_))) - 1;
-        limit_update_ = 5;
 
         if (meta_.find("load") != meta_.end()) {
             std::string file_name = meta_["load"].value;
@@ -420,20 +227,13 @@ public:
     };
 
     void CloseEpisode(const std::string &flag = "") override {
-        Reset();
-    }
-
-    void Reset() {
-        tuple_id_ = 0;
-        board_appears_1536_ = 0;
-        board_appears_3072_ = 0;
     }
 
     void Learn(const Episode &episode) {
         std::vector<Episode::Move> moves = episode.GetMoves();
         int id = 0;
 
-        for (int i = 9; i < moves.size(); i += 2) {
+        for (unsigned i = 9; i < moves.size(); i += 2) {
             Board64 after_state(moves[i].board, moves[i].hint);
             id = GetTupleId(after_state);
 
@@ -483,17 +283,7 @@ public:
         return reward;
     }
 
-    bool FindTile(Board64 board, int tile) {
-        for (int i = 0; i < 16; ++i) {
-            if (tile == board(i)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    bool TrainingFinished(int stage, int limit = 5000000) {
+    bool TrainingFinished(int stage, size_t limit = 5000000) {
         switch (stage) {
             case 1:
                 return count_after_1536_game_ > limit;
@@ -505,53 +295,41 @@ public:
     }
 
     Action TakeAction(const Board64 &board, const Action &evil_action) override {
-        if (tuple_id_ < 1 && FindTile(board, 12)) {
-            tuple_id_ = 1;
-            count_after_1536_game_++;
-            board_appears_1536_ = board.GetBoard();
-        }
+        if(GetTupleId(board) == 1) count_after_1536_game_++;
+        if(GetTupleId(board) == 2) count_after_3072_game_++;
 
-        if (tuple_id_ < 2 && FindTile(board, 13)) {
-            tuple_id_ = 2;
-            count_after_3072_game_++;
-            board_appears_3072_ = board.GetBoard();
-        }
+        int tile = Action::Place(evil_action).tile();
+        bag_[tile]--;
 
         return Policy(board);
     }
 
     Action Policy(Board64 board) {
-        float max_score = INT64_MIN;
-        int chosen_direction = -1;
+        int max_tile = board.GetMaxTile();
+        int depth = 0;
 
-        for (int direction : directions_) {
-            Board64 after_state = board;
-
-            reward_t reward = after_state.Slide(direction);
-
-            if (after_state == board) continue;
-
-            float score = reward + V(after_state);
-            if (score > max_score) {
-                max_score = score;
-                chosen_direction = direction;
-            }
+        if (max_tile <= 11) {
+            depth = 3;
+        } else {
+            depth = 5;
         }
 
-        if (chosen_direction != -1) {
-            return Action::Slide(chosen_direction);
+        std::pair<int,int> direction_reward = Expectimax(1, board, -1, bag_, depth);
+
+        if (direction_reward.first != -1) {
+            return Action::Slide(direction_reward.first);
         }
 
         return Action();
     }
 
-    float Expectimax(int state, Board64 board, int player_move, int bag, int hint, int depth) {
+    std::pair<int,int> Expectimax(int state, Board64 board, int player_move, std::array<int, 4> bag, int depth) {
         if (board.IsTerminal()) {
-            return 0;
+            return std::make_pair(-1, 0);
         }
 
         if(depth == 0) {
-            return V(board, GetTupleId(board));
+            return std::make_pair(-1, V(board, GetTupleId(board)));
         }
 
         if (state == 1) { // Max node - before state
@@ -562,53 +340,50 @@ public:
                 reward_t reward = child.Slide(d);
                 if (child == board) continue;
 
-                reward += Expectimax(1 - state, child, d, bag, hint, depth - 1);
+                std::pair<int,int> direction_reward = Expectimax(1 - state, child, d, bag, depth - 1);
 
-                if(reward > max_reward) {
-                    max_reward = reward;
+                if(reward + direction_reward.second > max_reward) {
+                    max_reward = reward + direction_reward.second;
+                    direction = d;
                 }
             }
 
-            return max_reward;
+            return std::make_pair(direction, max_reward);
         } else {
-            score = 0.0f;
-            std::array<unsigned int, 4> positions = getPlacingPosition(player_move);
+            float score = 0;
+            int child_count = 0;
+            std::vector<int> positions = GetPlacingPosition(player_move);
 
-            if (bag == 0) {
-                bag = 0x7;
-            }
-
-            int placing_position = 0;
-            for (int i = 0; i < 4; ++i) {
-                placing_position += (board(positions[i]) == 0);
-            }
-
-            int bag_size = 0;
-            for (int tile = 1; tile <= 3; ++tile) {
-                if (((1 << (tile - 1)) & bag) != 0) {
-                    bag_size++;
+            bag[board.GetHint()]--;
+            if (is_empty(bag)) {
+                for (int i = 1; i <= 3; i++) {
+                    bag[i] = 4;
                 }
             }
 
-            for (int i = 0; i < 4; ++i) {
-                if (board(positions[i]) != 0) continue;
+            for(int position : positions) {
+                if (board(position) != 0) continue;
+
+                Board64 child = board;
+                reward_t reward = child.Place(position, board.GetHint());
 
                 for (int tile = 1; tile <= 3; ++tile) {
-                    if (((1 << (tile - 1)) & bag) != 0) {
-                        Board64 child = Board64(board);
-                        child.Place(positions[i], tile);
+                    if (bag[tile] != 0) {
+                        child.SetHint(tile);
+                        std::pair<int,int> direction_reward = Expectimax(1 - state, child, -1, bag, depth - 1);
 
-                        int child_bag = bag ^(1 << (tile - 1));
-
-                        score += ((1.0f / placing_position) * (1.0f / bag_size)) *
-                                 Expectimax(child, depth - 1, -1, child_bag);
+                        score += reward;
+                        score += direction_reward.second;
+                        child_count++;
                     }
                 }
             }
+
+            return std::make_pair(-1, score / child_count);
         }
     }
 
-    std::vector<int> getPlacingPosition(int player_move) {
+    std::vector<int> GetPlacingPosition(int player_move) {
         switch (player_move) {
             case 0:
                 return {12, 13, 14, 15};
@@ -625,10 +400,6 @@ public:
 
     float V(Board64 board, int id) {
         return tuple_network_[id].GetValue(board);
-    }
-
-    float V(Board64 board) {
-        return V(board, tuple_id_);
     }
 
     void save() {
@@ -655,15 +426,23 @@ public:
     }
 
 private:
-    int limit_update_;
-    int tuple_id_;
     int tuple_size_;
-    board_t board_appears_1536_;
-    board_t board_appears_3072_;
     size_t count_after_3072_game_;
     size_t count_after_1536_game_;
     float learning_rate_;
     float lambda_;
+    int depth_;
     std::vector<std::string> file_name_;
     std::vector<NTupleNetwork> tuple_network_;
+    std::array<int, 4> bag_;
+
+    bool is_empty(std::array<int, 4> bag) {
+        for (int i = 1; i <= 3; i++) {
+            if (bag[i] != 0) {
+                return false;
+            }
+        }
+
+        return true;
+    }
 };

@@ -26,12 +26,15 @@ public:
         time_t time;
         board_t board;
         int hint;
+        std::array<int, 4> bag;
 
-        Move(board_t board = 0, int hint = 0, Action code = {}, reward_t reward = 0, time_t time = 0) : board(board),
-                                                                                                        code(code),
-                                                                                                        reward(reward),
-                                                                                                        time(time),
-                                                                                                        hint(hint) {}
+        Move(board_t board = 0, int hint = 0, Action code = {}, reward_t reward = 0, time_t time = 0,
+             std::array<int, 4> bag = {0, 4, 4, 4}) : board(board),
+                                                      code(code),
+                                                      reward(reward),
+                                                      time(time),
+                                                      hint(hint),
+                                                      bag(bag) {}
 
         operator Action() const { return code; }
 
