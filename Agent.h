@@ -306,20 +306,19 @@ public:
         int depth = 0;
 
         //GOOD SETTING
-        if (max_tile <= 10) {
-            depth = 3;
-        } else if (max_tile <= 12) {
-            depth = 5;
-        } else if (max_tile > 12) {
-            depth = 7;
-        }
+//        if (max_tile <= 10) {
+//            depth = 3;
+//        } else if (max_tile <= 12) {
+//            depth = 5;
+//        } else if (max_tile > 12) {
+//            depth = 7;
+//        }
 
-        if (max_tile <= 10) {
+        //BEST SETTING
+        if (max_tile <= 11) {
             depth = 3;
-        } else if (max_tile <= 12) {
+        } else {
             depth = 5;
-        } else if (max_tile > 12) {
-            depth = 7;
         }
 
         std::pair<int, int> direction_reward = Expectimax(1, board, -1, bag_, depth);

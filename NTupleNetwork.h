@@ -413,8 +413,10 @@ public:
     }
 
     void load(std::ifstream &load_stream) {
+        int count = 0;
         for (auto &tuple : tuples) {
             tuple->load(load_stream);
+            std::cout << "Loaded " << count++ << "tuple" << std::endl;
         }
     }
 
