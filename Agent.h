@@ -324,7 +324,7 @@ public:
                 depth = 7;
             }
         } else if (depth_setting_ == 3) { //Running seting
-            if (max_tile <= 7) {
+            if (max_tile <= 6) {
                 depth = 1;
             } else if (max_tile <= 11) {
                 depth = 3;
