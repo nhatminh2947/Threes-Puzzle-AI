@@ -341,7 +341,15 @@ public:
             } else if (max_tile > 12) {
                 depth = 7;
             }
-        }
+        } else if (depth_setting_ == 5) {
+	    if (max_tile <= 6) {
+                depth = 1;
+            } else if (max_tile <= 12) {
+                depth = 3;
+            } else {
+                depth = 5;
+            }
+	}
 
         std::pair<int, int> direction_reward = Expectimax(1, board, -1, bag_, depth);
 
