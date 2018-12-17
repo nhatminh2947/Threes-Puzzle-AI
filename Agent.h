@@ -84,10 +84,6 @@ protected:
     std::default_random_engine engine_;
 };
 
-/**
- * Using bag = {1, 2, 3}
- * Selecting randomly a number in bag and place it randomly in board
- */
 class RandomEnvironment : public RandomAgent {
 
 public:
@@ -203,7 +199,7 @@ class TdLambdaPlayer : public Player {
 public:
     TdLambdaPlayer(const std::string &args = "") : Player("name=TDLambda role=Player " + args),
                                                    lambda_(0.5), learning_rate_(0.0025), tuple_size_(3),
-                                                   bag_({0, 4, 4, 4}) {
+                                                   bag_({0, 4, 4, 4}), depth_setting_(1) {
 
         tuple_network_ = std::vector<NTupleNetwork>(tuple_size_);
 
@@ -212,8 +208,13 @@ public:
             load(file_name);
         }
 
-        if (meta_.find("alpha") != meta_.end())
+        if (meta_.find("alpha") != meta_.end()) {
             learning_rate_ = float(meta_["alpha"]);
+        }
+
+        if (meta_.find("ddepth") != meta_.end()) {
+            depth_setting_ = int(meta_["ddepth"]);
+        }
 
         if (meta_.find("save") != meta_.end()) { // pass save=... to save to a specific file
             file_name_ = meta_["save"].value;
@@ -306,17 +307,15 @@ public:
 
         int depth = 3;
 
-        if (setting_ == 0) {
+        if (depth_setting_ == 0) {
             depth = 3;
-        } else if (setting_ == 1) {
-            //BEST SETTING
+        } else if (depth_setting_ == 1) { //BEST SETTING
             if (max_tile <= 11) {
                 depth = 3;
             } else {
                 depth = 5;
             }
-        } else if (setting_ == 2) {
-            //GOOD SETTING
+        } else if (depth_setting_ == 2) { //GOOD SETTING
             if (max_tile <= 11) {
                 depth = 3;
             } else if (max_tile <= 12) {
@@ -324,17 +323,15 @@ public:
             } else if (max_tile > 12) {
                 depth = 7;
             }
-        } else if (setting_ == 3) {
-            //Running seting
-            if (max_tile <= 6) {
+        } else if (depth_setting_ == 3) { //Running seting
+            if (max_tile <= 7) {
                 depth = 1;
             } else if (max_tile <= 11) {
                 depth = 3;
             } else {
                 depth = 5;
             }
-        } else if (setting_ == 3) {
-            //Running seting
+        } else if (depth_setting_ == 4) {
             if (max_tile <= 6) {
                 depth = 1;
             } else if (max_tile <= 11) {
@@ -459,12 +456,14 @@ public:
 
             tuple_network_[i].load(load_stream);
             load_stream.close();
+
+            std::cout << "Loaded " << i << " tuple" << std::endl;
         }
     }
 
 private:
     int tuple_size_;
-    int setting_;
+    int depth_setting_;
     float learning_rate_;
     float lambda_;
 
