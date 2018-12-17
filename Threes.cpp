@@ -51,7 +51,9 @@ int main(int argc, const char *argv[]) {
             std::string s = para.substr(para.find("=") + 1);
             if (s == "epoch") {
                 save = "../results/" + std::to_string(std::time(nullptr));
-            } else save = s;
+            } else {
+                save = s;
+            }
         } else if (para.find("--summary") == 0) {
             summary = true;
         }

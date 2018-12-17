@@ -303,22 +303,47 @@ public:
 
     Action Policy(Board64 board) {
         int max_tile = board.GetMaxTile();
-        int depth = 0;
 
-        //GOOD SETTING
-//        if (max_tile <= 10) {
-//            depth = 3;
-//        } else if (max_tile <= 12) {
-//            depth = 5;
-//        } else if (max_tile > 12) {
-//            depth = 7;
-//        }
+        int depth = 3;
 
-        //BEST SETTING
-        if (max_tile <= 11) {
+        if (setting_ == 0) {
             depth = 3;
-        } else {
-            depth = 5;
+        } else if (setting_ == 1) {
+            //BEST SETTING
+            if (max_tile <= 11) {
+                depth = 3;
+            } else {
+                depth = 5;
+            }
+        } else if (setting_ == 2) {
+            //GOOD SETTING
+            if (max_tile <= 11) {
+                depth = 3;
+            } else if (max_tile <= 12) {
+                depth = 5;
+            } else if (max_tile > 12) {
+                depth = 7;
+            }
+        } else if (setting_ == 3) {
+            //Running seting
+            if (max_tile <= 6) {
+                depth = 1;
+            } else if (max_tile <= 11) {
+                depth = 3;
+            } else {
+                depth = 5;
+            }
+        } else if (setting_ == 3) {
+            //Running seting
+            if (max_tile <= 6) {
+                depth = 1;
+            } else if (max_tile <= 11) {
+                depth = 3;
+            } else if (max_tile == 12) {
+                depth = 5;
+            } else if (max_tile > 12) {
+                depth = 7;
+            }
         }
 
         std::pair<int, int> direction_reward = Expectimax(1, board, -1, bag_, depth);
@@ -439,11 +464,14 @@ public:
 
 private:
     int tuple_size_;
+    int setting_;
     float learning_rate_;
     float lambda_;
+
     std::string file_name_;
     std::vector<NTupleNetwork> tuple_network_;
     std::array<int, 4> bag_;
+
 
     bool is_empty(std::array<int, 4> bag) {
         for (int i = 1; i <= 3; i++) {
