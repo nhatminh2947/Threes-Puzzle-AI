@@ -284,17 +284,6 @@ public:
         return reward;
     }
 
-//    bool TrainingFinished(int stage, size_t limit = 5000000) {
-//        switch (stage) {
-//            case 1:
-//                return count_after_1536_game_ > limit;
-//            case 2:
-//                return count_after_3072_game_ > limit;
-//            default:
-//                return false;
-//        }
-//    }
-
     Action TakeAction(const Board64 &board, const Action &evil_action) override {
         int tile = Action::Place(evil_action).tile();
         bag_[tile]--;
@@ -342,14 +331,14 @@ public:
                 depth = 7;
             }
         } else if (depth_setting_ == 5) {
-	    if (max_tile <= 6) {
-                depth = 1;
-            } else if (max_tile <= 12) {
-                depth = 3;
-            } else {
-                depth = 5;
-            }
-	}
+            if (max_tile <= 6) {
+                    depth = 1;
+                } else if (max_tile <= 12) {
+                    depth = 3;
+                } else {
+                    depth = 5;
+                }
+        }
 
         std::pair<int, int> direction_reward = Expectimax(1, board, -1, bag_, depth);
 
