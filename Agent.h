@@ -91,7 +91,6 @@ public:
                                                       positions_(
                                                               {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}),
                                                       popup_(1, 3),
-                                                      hint(0),
                                                       bag_({0, 4, 4, 4}) {}
 
     Action TakeAction(const Board64 &board, const Action &player_action) {
@@ -113,7 +112,6 @@ public:
                 break;
         }
 
-        int hint = board.GetHint();
         if (board.GetBoard() == 0) {
             hint = engine_() % 3 + 1;
         }
@@ -189,7 +187,6 @@ private:
 private:
     int n_bonus_tile_ = 0;
     int total_generated_tiles_ = 0;
-    int hint;
     std::array<int, 4> bag_;
     std::vector<unsigned int> positions_;
     std::uniform_int_distribution<int> popup_;

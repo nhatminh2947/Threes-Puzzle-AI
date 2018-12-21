@@ -47,9 +47,9 @@ static board_t Transpose(board_t board) {
 
 class Board64 {
 public:
-    Board64() : board_(), hint_(0) {}
+    Board64() : board_() {}
 
-    Board64(const board_t &board, const int hint = 0) : board_(board), hint_(hint) {}
+    Board64(const board_t &board, const int hint = 0) : board_(board) {}
 
     Board64(const Board64 &board) = default;
 
@@ -254,7 +254,6 @@ public:
 
     void Print() {
         int i, j;
-        std::cout << hint_ << std::endl;
         for (i = 0; i < 4; i++) {
             for (j = 0; j < 4; j++) {
                 printf("%c", "0123456789abcdef"[(board_ >> (4 * (4 * i + j))) & 0xf]);
@@ -279,14 +278,6 @@ public:
         board_ = ::Transpose(this->board_);
     }
 
-    int GetHint() {
-        return hint_;
-    }
-
-    const int GetHint() const {
-        return hint_;
-    }
-
     void SetHint(int hint) {
         hint_ = hint;
     }
@@ -304,7 +295,6 @@ public:
 
 private:
     board_t board_;
-    int hint_;
 
     void ReverseRow(int row_id) {
         row_t row = GetRow(row_id);

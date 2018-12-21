@@ -3,25 +3,25 @@
 #include <memory>
 #include <unordered_map>
 #include <string>
-#include "agent.h"
-#include "episode.h"
+#include "Agent.h"
+#include "Episode.h"
 
 class arena {
 public:
-	class match : public episode {
+	class match : public Episode {
 	public:
-		match(const std::string& id, std::shared_ptr<agent> play, std::shared_ptr<agent> evil) : id(id), play(play), evil(evil) {}
+		match(const std::string& id, std::shared_ptr<Agent> play, std::shared_ptr<Agent> evil) : id(id), play(play), evil(evil) {}
 		std::string name() const { return id; }
 
-		action take_action() {
-			agent& who = take_turns(*play, *evil);
-			return who.take_action(state());
+		Action TakeAction() {
+			Agent& who = TakeTurns(*play, *evil);
+			return who.TakeAction(state());
 		}
 
 	private:
 		std::string id;
-		std::shared_ptr<agent> play;
-		std::shared_ptr<agent> evil;
+		std::shared_ptr<Agent> play;
+		std::shared_ptr<Agent> evil;
 	};
 
 public:
@@ -40,7 +40,7 @@ public:
 		if (play->role() == "dummy" && evil->role() == "dummy") return false;
 
 		std::shared_ptr<match> m(new match(id, play, evil));
-		m->open_episode(tag);
+		m->OpenEpisode(tag);
 		ongoing[id] = m;
 		return true;
 	}
@@ -48,7 +48,7 @@ public:
 		auto it = ongoing.find(id);
 		if (it != ongoing.end()) {
 			auto m = it->second;
-			m->close_episode(tag);
+			m->CloseEpisode(tag);
 			dump << (*m) << std::endl << std::flush;
 			ongoing.erase(it);
 			return true;
@@ -57,17 +57,17 @@ public:
 	}
 
 public:
-	bool register_agent(std::shared_ptr<agent> a) {
+	bool register_agent(std::shared_ptr<Agent> a) {
 		if (lounge.find(a->name()) != lounge.end()) return false;
 		lounge[a->name()] = a;
 		return true;
 	}
-	bool remove_agent(std::shared_ptr<agent> a) {
+	bool remove_agent(std::shared_ptr<Agent> a) {
 		return lounge.erase(a->name());
 	}
 
 private:
-	std::shared_ptr<agent> find_agent(const std::string& name, const std::string& role) {
+	std::shared_ptr<Agent> find_agent(const std::string& name, const std::string& role) {
 		if (name[0] == '$' && name.substr(1) == account()) {
 			for (auto who : list_agents()) {
 				if (who->role()[0] == role[0]) return who;
@@ -75,7 +75,7 @@ private:
 		}
 		auto it = lounge.find(name);
 		if (it != lounge.end() && it->second->role()[0] == role[0]) return it->second;
-		return std::shared_ptr<agent>(new agent("name=" + name + " role=dummy"));
+		return std::shared_ptr<Agent>(new Agent("name=" + name + " role=dummy"));
 	}
 
 public:
@@ -84,8 +84,8 @@ public:
 		for (auto ep : ongoing) res.push_back(ep.second);
 		return res;
 	}
-	std::vector<std::shared_ptr<agent>> list_agents() const {
-		std::vector<std::shared_ptr<agent>> res;
+	std::vector<std::shared_ptr<Agent>> list_agents() const {
+		std::vector<std::shared_ptr<Agent>> res;
 		for (auto who : lounge) res.push_back(who.second);
 		return res;
 	}
@@ -104,7 +104,7 @@ public:
 	}
 
 private:
-	std::unordered_map<std::string, std::shared_ptr<agent>> lounge;
+	std::unordered_map<std::string, std::shared_ptr<Agent>> lounge;
 	std::unordered_map<std::string, std::shared_ptr<match>> ongoing;
 	std::string name;
 	std::ofstream dump;
