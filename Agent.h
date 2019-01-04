@@ -38,7 +38,7 @@ public:
 
 public:
     virtual std::string property(const std::string &key) const { return meta_.at(key); }
-
+//Use this to notify hint
     virtual void notify(const std::string &msg) {
         meta_[msg.substr(0, msg.find('='))] = {msg.substr(msg.find('=') + 1)};
     }
