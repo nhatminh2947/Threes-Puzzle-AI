@@ -121,7 +121,6 @@ public:
 
 public:
     reward_t Apply(Board64 &b) const {
-        b.SetHint(hint());
         return b.Place(position(), tile());
     }
 

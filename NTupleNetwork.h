@@ -18,11 +18,11 @@ class Tuple {
 public:
     Tuple() = default;
 
-    virtual float GetValue(Board64 board) { return 0; }
+    virtual float GetValue(Board64 board, int hint) { return 0; }
 
-    virtual board_t GetIndex(Board64 board, int id) { return 0; }
+    virtual board_t GetIndex(Board64 board, int hint, int id) { return 0; }
 
-    virtual void UpdateValue(Board64 b, float delta) {}
+    virtual void UpdateValue(Board64 b, int hint, float delta) {}
 
     virtual void save(std::ofstream &out) {}
 
@@ -36,34 +36,34 @@ public:
         std::fill(lookup_table_[1].begin(), lookup_table_[1].end(), 0);
     }
 
-    board_t GetIndex(Board64 board, int id) override {
+    board_t GetIndex(Board64 board, int hint, int id) override {
         board_t c1 = board.GetCol(id);
         board_t c2 = board.GetCol(id + 1);
-        board_t index = ((((c1 & 0xffff) << 8) | ((c2 & 0xff00) >> 8)) << 2) | (std::min(4, board.GetHint()) - 1);
+        board_t index = ((((c1 & 0xffff) << 8) | ((c2 & 0xff00) >> 8)) << 2) | (std::min(4, hint) - 1);
 
         return index;
     }
 
-    void UpdateValue(Board64 board, float delta) override {
+    void UpdateValue(Board64 board, int hint, float delta) override {
         Board64 b = board;
 
         for (int i = 0; i < 4; ++i) {
             for (int j = 0; j < 2; j++) {
                 Board64 temp_board = b;
 
-                board_t index = GetIndex(temp_board, j);
+                board_t index = GetIndex(temp_board, hint, j);
                 lookup_table_[j][index] += delta;
 
                 temp_board.ReflectVertical();
 
-                index = GetIndex(temp_board, j);
+                index = GetIndex(temp_board, hint, j);
                 lookup_table_[j][index] += delta;
             }
             b.TurnRight();
         }
     }
 
-    float GetValue(Board64 board) override {
+    float GetValue(Board64 board, int hint) override {
         float total_value = 0.0;
 
         Board64 b = board;
@@ -72,12 +72,12 @@ public:
             for (int j = 0; j < 2; ++j) {
                 Board64 temp_board = b;
 
-                board_t index = GetIndex(temp_board, j);
+                board_t index = GetIndex(temp_board, hint, j);
                 total_value += lookup_table_[j][index];
 
                 temp_board.ReflectVertical();
 
-                index = GetIndex(temp_board, j);
+                index = GetIndex(temp_board, hint, j);
                 total_value += lookup_table_[j][index];
             }
             b.TurnRight();
@@ -107,27 +107,27 @@ public:
         std::fill(lookup_table_[1].begin(), lookup_table_[1].end(), 0);
     }
 
-    board_t GetIndex(Board64 board, int id) override {
+    board_t GetIndex(Board64 board, int hint, int id) override {
         board_t c1 = board.GetCol(id);
         board_t c2 = board.GetCol(id + 1);
         board_t index = ((c1 & 0xfff) << 12ULL) | (c2 & 0xfff);
 
-        return (std::min(4, board.GetHint()) - 1) | (index << 2);
+        return (std::min(4, hint) - 1) | (index << 2);
     }
 
-    void UpdateValue(Board64 board, float delta) override {
+    void UpdateValue(Board64 board, int hint, float delta) override {
         Board64 b = board;
 
         for (int i = 0; i < 4; ++i) {
             for (int j = 0; j < 2; j++) {
                 Board64 temp_board = b;
 
-                board_t index1 = GetIndex(temp_board, j);
+                board_t index1 = GetIndex(temp_board, hint, j);
                 lookup_table_[j][index1] += delta;
 
                 temp_board.ReflectVertical();
 
-                board_t index2 = GetIndex(temp_board, j);
+                board_t index2 = GetIndex(temp_board, hint, j);
                 if (j == 1 && index1 != index2) {
                     lookup_table_[j][index2] += delta;
                 }
@@ -136,7 +136,7 @@ public:
         }
     }
 
-    float GetValue(Board64 board) override {
+    float GetValue(Board64 board, int hint) override {
         float total_value = 0.0;
 
         Board64 b = board;
@@ -145,12 +145,12 @@ public:
             for (int j = 0; j < 2; ++j) {
                 Board64 temp_board = b;
 
-                board_t index1 = GetIndex(temp_board, j);
+                board_t index1 = GetIndex(temp_board, hint, j);
                 total_value += lookup_table_[j][index1];
 
                 temp_board.ReflectVertical();
 
-                board_t index2 = GetIndex(temp_board, j);
+                board_t index2 = GetIndex(temp_board, hint, j);
                 if (j == 1 && index1 != index2) {
                     total_value += lookup_table_[j][index2];
                 }
@@ -181,7 +181,7 @@ public:
         std::fill(lookup_table_.begin(), lookup_table_.end(), 0);
     }
 
-    board_t GetIndex(Board64 board, int id) override {
+    board_t GetIndex(Board64 board, int hint, int id) override {
         Board64 b = board;
 
         int count_tile[15];
@@ -196,15 +196,15 @@ public:
             index = (index << 4) | (count_tile[i + 10]);
         }
 
-        return (std::min(4, board.GetHint()) - 1) | (index << 2);
+        return (std::min(4, hint) - 1) | (index << 2);
     }
 
-    void UpdateValue(Board64 board, float delta) override {
-        lookup_table_[GetIndex(board, 0)] += delta;
+    void UpdateValue(Board64 board, int hint, float delta) override {
+        lookup_table_[GetIndex(board, hint, 0)] += delta;
     }
 
-    float GetValue(Board64 board) override {
-        return lookup_table_[GetIndex(board, 0)];
+    float GetValue(Board64 board, int hint) override {
+        return lookup_table_[GetIndex(board, hint, 0)];
     }
 
     void save(std::ofstream &out) override {
@@ -225,22 +225,22 @@ public:
         std::fill(lookup_table_.begin(), lookup_table_.end(), 0);
     }
 
-    board_t GetIndex(Board64 board, int id) override {
+    board_t GetIndex(Board64 board, int hint, int id) override {
         board_t index = 0;
 
         for (int i = 0; i < 16; ++i) {
             index += (board(i) == 0);
         }
 
-        return (index << 2) | (std::min(4, board.GetHint()) - 1);
+        return (index << 2) | (std::min(4, hint) - 1);
     }
 
-    void UpdateValue(Board64 board, float delta) override {
-        lookup_table_[GetIndex(board, 0)] += delta;
+    void UpdateValue(Board64 board, int hint, float delta) override {
+        lookup_table_[GetIndex(board, hint, 0)] += delta;
     }
 
-    float GetValue(Board64 board) override {
-        return lookup_table_[GetIndex(board, 0)];
+    float GetValue(Board64 board, int hint) override {
+        return lookup_table_[GetIndex(board, hint, 0)];
     }
 
     void save(std::ofstream &out) override {
@@ -261,22 +261,22 @@ public:
         std::fill(lookup_table_.begin(), lookup_table_.end(), 0);
     }
 
-    board_t GetIndex(Board64 board, int id) override {
+    board_t GetIndex(Board64 board, int hint, int id) override {
         board_t index = 0;
 
         for (int i = 0; i < 16; ++i) {
             index |= (1 << board(i));
         }
 
-        return (std::min(4, board.GetHint()) - 1) | (index << 2);
+        return (std::min(4, hint) - 1) | (index << 2);
     }
 
-    void UpdateValue(Board64 board, float delta) override {
-        lookup_table_[GetIndex(board, 0)] += delta;
+    void UpdateValue(Board64 board, int hint, float delta) override {
+        lookup_table_[GetIndex(board, hint, 0)] += delta;
     }
 
-    float GetValue(Board64 board) override {
-        return lookup_table_[GetIndex(board, 0)];
+    float GetValue(Board64 board, int hint) override {
+        return lookup_table_[GetIndex(board, hint, 0)];
     }
 
     void save(std::ofstream &out) override {
@@ -297,7 +297,7 @@ public:
         std::fill(lookup_table_.begin(), lookup_table_.end(), 0);
     }
 
-    board_t GetIndex(Board64 board, int id) override {
+    board_t GetIndex(Board64 board, int hint, int id) override {
         board_t index = 0;
 
         for (int i = 0; i < 16; ++i) {
@@ -311,15 +311,15 @@ public:
             }
         }
 
-        return (index << 2) | (std::min(4, board.GetHint()) - 1);
+        return (index << 2) | (std::min(4, hint) - 1);
     }
 
-    void UpdateValue(Board64 board, float delta) override {
-        lookup_table_[GetIndex(board, 0)] += delta;
+    void UpdateValue(Board64 board, int hint, float delta) override {
+        lookup_table_[GetIndex(board, hint, 0)] += delta;
     }
 
-    float GetValue(Board64 board) override {
-        return lookup_table_[GetIndex(board, 0)];
+    float GetValue(Board64 board, int hint) override {
+        return lookup_table_[GetIndex(board, hint, 0)];
     }
 
     void save(std::ofstream &out) override {
@@ -340,7 +340,7 @@ public:
         std::fill(lookup_table_.begin(), lookup_table_.end(), 0);
     }
 
-    board_t GetIndex(Board64 board, int id) override {
+    board_t GetIndex(Board64 board, int hint, int id) override {
         board_t index = 0;
 
         for (int i = 0; i < 16; ++i) {
@@ -354,15 +354,15 @@ public:
             }
         }
 
-        return (index << 2) | (std::min(4, board.GetHint()) - 1);
+        return (index << 2) | (std::min(4, hint) - 1);
     }
 
-    void UpdateValue(Board64 board, float delta) override {
-        lookup_table_[GetIndex(board, 0)] += delta;
+    void UpdateValue(Board64 board, int hint, float delta) override {
+        lookup_table_[GetIndex(board, hint, 0)] += delta;
     }
 
-    float GetValue(Board64 board) override {
-        return lookup_table_[GetIndex(board, 0)];
+    float GetValue(Board64 board, int hint) override {
+        return lookup_table_[GetIndex(board, hint, 0)];
     }
 
     void save(std::ofstream &out) override {
@@ -390,19 +390,19 @@ public:
         tuples.emplace_back(new NeighboringVTile());
     }
 
-    float GetValue(Board64 board) {
+    float GetValue(Board64 board, int hint) {
         float total_value = 0;
         for (auto &tuple : tuples) {
-            total_value += tuple->GetValue(board);
+            total_value += tuple->GetValue(board, hint);
         }
 
 
         return total_value;
     }
 
-    void UpdateValue(Board64 board, float delta) {
+    void UpdateValue(Board64 board, int hint, float delta) {
         for (auto &tuple : tuples) {
-            tuple->UpdateValue(board, delta);
+            tuple->UpdateValue(board, hint, delta);
         }
     }
 

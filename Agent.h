@@ -32,12 +32,13 @@ public:
 
     virtual void CloseEpisode(const std::string &flag = "") {}
 
-    virtual Action TakeAction(const Board64 &b, const Action &prev_action) { return Action(); }
+    virtual Action TakeAction(const Board64 &b) { return Action(); }
 
     virtual bool CheckForWin(const Board64 &b) { return false; }
 
 public:
     virtual std::string property(const std::string &key) const { return meta_.at(key); }
+
 //Use this to notify hint
     virtual void notify(const std::string &msg) {
         meta_[msg.substr(0, msg.find('='))] = {msg.substr(msg.find('=') + 1)};
@@ -93,8 +94,13 @@ public:
                                                       popup_(1, 3),
                                                       bag_({0, 4, 4, 4}) {}
 
-    Action TakeAction(const Board64 &board, const Action &player_action) {
-        switch (player_action.event()) {
+    Action TakeAction(const Board64 &board) {
+        Action player_action;
+        if(meta_.find("player_action_code") != meta_.end()){
+            player_action = Action(unsigned(meta_["player_action_code"]));
+        }
+
+        switch (Action::Slide(player_action).event()) {
             case 0:
                 positions_ = {12, 13, 14, 15};
                 break;
@@ -112,8 +118,9 @@ public:
                 break;
         }
 
-        if (board.GetBoard() == 0) {
-            hint = engine_() % 3 + 1;
+        int hint = engine_() % 3 + 1;
+        if (meta_.find("next_hint") != meta_.end()) {
+            hint = int(meta_["next_hint"]);
         }
 
         std::shuffle(positions_.begin(), positions_.end(), engine_);
@@ -149,7 +156,13 @@ public:
                 } while (bag_[next_hint] == 0);
             }
 
-            return Action::Place(position, hint, next_hint);
+            std::string next_hint_notify = "next_hint=" + std::to_string(next_hint);
+            notify(next_hint_notify);
+            Action::Place place(position, hint, next_hint);
+
+            notify("evil_action_code=" + std::to_string(unsigned(place)));
+
+            return place;
         }
 
         return Action();
@@ -231,16 +244,19 @@ public:
         int id = 0;
 
         for (unsigned i = 9; i < moves.size(); i += 2) {
-            Board64 after_state(moves[i].board, moves[i].hint);
+            Board64 after_state(moves[i].board);
+            Action::Place place(moves[i].code);
+            int hint = place.hint();
+
             id = GetTupleId(after_state);
 
             if (i + 2 < moves.size()) {
-                Board64 after_state_next = Board64(moves[i + 2].board, moves[i + 2].hint);
+                Board64 after_state_next = Board64(moves[i + 2].board);
 
-                tuple_network_[id].UpdateValue(after_state,
-                                               learning_rate_ * (GetReward(i, moves) - V(after_state, id)));
+                tuple_network_[id].UpdateValue(after_state, hint,
+                                               learning_rate_ * (GetReward(i, moves) - V(after_state, hint, id)));
             } else {
-                tuple_network_[id].UpdateValue(after_state, learning_rate_ * (-V(after_state, id)));
+                tuple_network_[id].UpdateValue(after_state, hint, learning_rate_ * (-V(after_state, hint, id)));
             }
         }
     }
@@ -274,21 +290,27 @@ public:
             reward += moves[t + 2 * k].reward;
         }
         if (t + 2 * k < moves.size()) {
-            Board64 board(moves[t + 2 * k].board, moves[t + 2 * k].hint);
-            reward += V(board, GetTupleId(board));
+            Board64 board(moves[t + 2 * k].board);
+
+            Action::Place place(Action(moves[t + 2 * k].code));
+
+            reward += V(board, place.hint(), GetTupleId(board));
         }
 
         return reward;
     }
 
-    Action TakeAction(const Board64 &board, const Action &evil_action) override {
+    Action TakeAction(const Board64 &board) override {
+        Action evil_action(meta_["evil_action_code"]);
+        int hint = Action::Place(evil_action).hint();
         int tile = Action::Place(evil_action).tile();
+
         bag_[tile]--;
 
-        return Policy(board);
+        return Policy(board, hint);
     }
 
-    Action Policy(Board64 board) {
+    Action Policy(Board64 board, int hint) {
         int max_tile = board.GetMaxTile();
 
         int depth = 3;
@@ -329,30 +351,34 @@ public:
             }
         } else if (depth_setting_ == 5) {
             if (max_tile <= 6) {
-                    depth = 1;
-                } else if (max_tile <= 12) {
-                    depth = 3;
-                } else {
-                    depth = 5;
-                }
+                depth = 1;
+            } else if (max_tile <= 12) {
+                depth = 3;
+            } else {
+                depth = 5;
+            }
         }
 
-        std::pair<int, int> direction_reward = Expectimax(1, board, -1, bag_, depth);
+        std::pair<int, int> direction_reward = Expectimax(1, board, -1, bag_, hint, depth);
 
         if (direction_reward.first != -1) {
-            return Action::Slide(direction_reward.first);
+            Action::Slide slide(direction_reward.first);
+
+            notify("player_action_code=" + std::to_string(unsigned(slide)));
+            return slide;
         }
 
         return Action();
     }
 
-    std::pair<int, int> Expectimax(int state, Board64 board, int player_move, std::array<int, 4> bag, int depth) {
+    std::pair<int, int>
+    Expectimax(int state, Board64 board, int player_move, std::array<int, 4> bag, int hint, int depth) {
         if (board.IsTerminal()) {
             return std::make_pair(-1, 0);
         }
 
         if (depth == 0) {
-            return std::make_pair(-1, V(board, GetTupleId(board)));
+            return std::make_pair(-1, V(board, hint, GetTupleId(board)));
         }
 
         if (state == 1) { // Max node - before state
@@ -363,7 +389,7 @@ public:
                 reward_t reward = child.Slide(d);
                 if (child == board) continue;
 
-                std::pair<int, int> direction_reward = Expectimax(1 - state, child, d, bag, depth - 1);
+                std::pair<int, int> direction_reward = Expectimax(1 - state, child, d, bag, hint, depth - 1);
 
                 if (reward + direction_reward.second > max_reward) {
                     max_reward = reward + direction_reward.second;
@@ -377,7 +403,7 @@ public:
             int child_count = 0;
             std::vector<int> positions = GetPlacingPosition(player_move);
 
-            bag[board.GetHint()]--;
+            bag[hint]--;
             if (is_empty(bag)) {
                 for (int i = 1; i <= 3; i++) {
                     bag[i] = 4;
@@ -388,12 +414,12 @@ public:
                 if (board(position) != 0) continue;
 
                 Board64 child = board;
-                reward_t reward = child.Place(position, board.GetHint());
+                reward_t reward = child.Place(position, hint);
 
-                for (int tile = 1; tile <= 3; ++tile) {
-                    if (bag[tile] != 0) {
-                        child.SetHint(tile);
-                        std::pair<int, int> direction_reward = Expectimax(1 - state, child, -1, bag, depth - 1);
+                for (int next_hint = 1; next_hint <= 3; ++next_hint) {
+                    if (bag[next_hint] != 0) {
+                        std::pair<int, int> direction_reward = Expectimax(1 - state, child, -1, bag, next_hint,
+                                                                          depth - 1);
 
                         score += reward;
                         score += direction_reward.second;
@@ -421,8 +447,8 @@ public:
         }
     }
 
-    float V(Board64 board, int id) {
-        return tuple_network_[id].GetValue(board);
+    float V(Board64 board, int hint, int id) {
+        return tuple_network_[id].GetValue(board, hint);
     }
 
     void save() {

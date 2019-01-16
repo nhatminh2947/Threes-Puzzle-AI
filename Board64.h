@@ -278,10 +278,6 @@ public:
         board_ = ::Transpose(this->board_);
     }
 
-    void SetHint(int hint) {
-        hint_ = hint;
-    }
-
     bool IsTerminal() {
         for (int direction = 0; direction < 4; ++direction) {
             Board64 temp_board = board_;

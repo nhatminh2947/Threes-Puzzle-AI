@@ -79,7 +79,7 @@ int main(int argc, const char *argv[]) {
         Episode &game = stat.Back();
         while (true) {
             Agent &agent = game.TakeTurns(player, evil);
-            Action move = agent.TakeAction(game.state(), move);
+            Action move = agent.TakeAction(game.state());
 
             if (!game.ApplyAction(move)) break;
             if (agent.CheckForWin(game.state())) break;

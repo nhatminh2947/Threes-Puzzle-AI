@@ -25,7 +25,6 @@ public:
         reward_t reward;
         time_t time;
         board_t board;
-        int hint;
         std::array<int, 4> bag;
 
         Move(board_t board = 0, int hint = 0, Action code = {}, reward_t reward = 0, time_t time = 0,
@@ -33,7 +32,6 @@ public:
                                                       code(code),
                                                       reward(reward),
                                                       time(time),
-                                                      hint(hint),
                                                       bag(bag) {}
 
         operator Action() const { return code; }
@@ -84,7 +82,7 @@ public:
     bool ApplyAction(Action move) {
         reward_t reward = move.Apply(state());
         if (reward == -1) return false;
-        ep_moves.emplace_back(state().GetBoard(), state().GetHint(), move, reward, millisec() - ep_time);
+        ep_moves.emplace_back(state().GetBoard(), move, reward, millisec() - ep_time);
         ep_score += reward;
         return true;
     }
