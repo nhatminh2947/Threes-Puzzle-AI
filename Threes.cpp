@@ -3,9 +3,9 @@
 #include <iterator>
 #include <string>
 
+#include "Agent.h"
 #include "Board64.h"
 #include "Action.h"
-#include "Agent.h"
 #include "Episode.h"
 #include "Statistic.h"
 
@@ -71,19 +71,33 @@ int main(int argc, const char *argv[]) {
     TdLambdaPlayer player(play_args);
     RandomEnvironment evil(evil_args);
 
+    int count = 0;
     while (!stat.IsFinished()) {
+//        std::cout << count << std::endl;
         player.OpenEpisode("~:" + evil.name());
         evil.OpenEpisode(player.name() + ":~");
 
         stat.OpenEpisode(player.name() + ":" + evil.name());
         Episode &game = stat.Back();
+//        std::cout << "Start playing" << std::endl;
+        int moves = 0;
         while (true) {
-            Agent &agent = game.TakeTurns(player, evil);
-            Action move = agent.TakeAction(game.state());
+//            game.state().Print();
 
-            if (!game.ApplyAction(move)) break;
+            Agent &agent = game.TakeTurns(player, evil);
+//            std::cout << "moves = " << moves << " " << agent.name() << std::endl;
+            Action move = agent.TakeAction(game.state());
+//            std::cout << move << std::endl;
+
+            if (!game.ApplyAction(move)) {
+                break;
+            }
+//            std::cout << "applied action" << std::endl;
             if (agent.CheckForWin(game.state())) break;
+//            std::cout << "CheckForWin" << std::endl;
+            moves++;
         }
+//        std::cout << "Finished" << std::endl;
 
         Agent &win = game.TakeLastTurns(player, evil);
         stat.CloseEpisode(win.name());
@@ -102,6 +116,7 @@ int main(int argc, const char *argv[]) {
 
         player.CloseEpisode(win.name());
         evil.CloseEpisode(win.name());
+        count++;
     }
 
     if (summary) {

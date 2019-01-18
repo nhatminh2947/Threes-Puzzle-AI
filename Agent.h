@@ -17,14 +17,7 @@
 
 class Agent {
 public:
-    Agent(const std::string &args = "") {
-        std::stringstream ss("name=unknown role=unknown " + args);
-        for (std::string pair; ss >> pair;) {
-            std::string key = pair.substr(0, pair.find('='));
-            std::string value = pair.substr(pair.find('=') + 1);
-            meta_[key] = {value};
-        }
-    }
+    static int last_move_code;
 
     virtual ~Agent() {}
 
@@ -36,10 +29,18 @@ public:
 
     virtual bool CheckForWin(const Board64 &b) { return false; }
 
+    Agent(const std::string &args = "", int m = -1) {
+        std::stringstream ss("name=unknown role=unknown " + args);
+        for (std::string pair; ss >> pair;) {
+            std::string key = pair.substr(0, pair.find('='));
+            std::string value = pair.substr(pair.find('=') + 1);
+            meta_[key] = {value};
+        }
+    }
+
 public:
     virtual std::string property(const std::string &key) const { return meta_.at(key); }
 
-//Use this to notify hint
     virtual void notify(const std::string &msg) {
         meta_[msg.substr(0, msg.find('='))] = {msg.substr(msg.find('=') + 1)};
     }
@@ -65,7 +66,7 @@ protected:
 
 class Player : public Agent {
 public:
-    Player(const std::string &args = "") : Agent(args),
+    Player(const std::string &args = "") : Agent(args, 0),
                                            directions_({0, 1, 2, 3}) {}
 
 protected:
@@ -74,7 +75,7 @@ protected:
 
 class RandomAgent : public Agent {
 public:
-    RandomAgent(const std::string &args = "") : Agent(args) {
+    RandomAgent(const std::string &args = "") : Agent(args, 0) {
         if (meta_.find("seed") != meta_.end())
             engine_.seed(int(meta_["seed"]));
     }
@@ -95,9 +96,9 @@ public:
                                                       bag_({0, 4, 4, 4}) {}
 
     Action TakeAction(const Board64 &board) {
-        Action player_action;
-        if(meta_.find("player_action_code") != meta_.end()){
-            player_action = Action(unsigned(meta_["player_action_code"]));
+        Action::Slide player_action;
+        if (last_move_code != -1 && Action::Slide().type_ == Action::Slide(last_move_code).type()) {
+            player_action = Action::Slide(Action(last_move_code));
         }
 
         switch (Action::Slide(player_action).event()) {
@@ -119,7 +120,7 @@ public:
         }
 
         int hint = engine_() % 3 + 1;
-        if (meta_.find("next_hint") != meta_.end()) {
+        if (meta_.find("next_hint") != meta_.end() && int(meta_["next_hint"]) != -1) {
             hint = int(meta_["next_hint"]);
         }
 
@@ -158,9 +159,9 @@ public:
 
             std::string next_hint_notify = "next_hint=" + std::to_string(next_hint);
             notify(next_hint_notify);
-            Action::Place place(position, hint, next_hint);
 
-            notify("evil_action_code=" + std::to_string(unsigned(place)));
+            Action::Place place(position, hint, next_hint);
+            last_move_code = unsigned(place);
 
             return place;
         }
@@ -173,6 +174,8 @@ public:
             bag_[i] = 4;
         }
         positions_ = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+        std::string next_hint_notify = "next_hint=-1";
+        notify(next_hint_notify);
     };
 
 private:
@@ -233,7 +236,10 @@ public:
     };
 
     void CloseEpisode(const std::string &flag = "") override {
-    }
+        for (int i = 1; i <= 3; i++) {
+            bag_[i] = 4;
+        }
+    };
 
     void decreaseLearningRate10Times() {
         learning_rate_ /= 10;
@@ -291,8 +297,8 @@ public:
         }
         if (t + 2 * k < moves.size()) {
             Board64 board(moves[t + 2 * k].board);
-
             Action::Place place(Action(moves[t + 2 * k].code));
+//            std::cout << place << std::endl;
 
             reward += V(board, place.hint(), GetTupleId(board));
         }
@@ -301,11 +307,19 @@ public:
     }
 
     Action TakeAction(const Board64 &board) override {
-        Action evil_action(meta_["evil_action_code"]);
-        int hint = Action::Place(evil_action).hint();
-        int tile = Action::Place(evil_action).tile();
+        Action::Place evil_action = Action::Place(Action(last_move_code));
+        int hint = evil_action.hint();
+        int tile = evil_action.tile();
 
-        bag_[tile]--;
+        if(tile <= 3) {
+            bag_[tile]--;
+        }
+
+        if (is_empty(bag_)) {
+            for (int i = 1; i <= 3; i++) {
+                bag_[i] = 4;
+            }
+        }
 
         return Policy(board, hint);
     }
@@ -360,11 +374,11 @@ public:
         }
 
         std::pair<int, int> direction_reward = Expectimax(1, board, -1, bag_, hint, depth);
-
+//        std::cout << "direction: " << direction_reward.first << " hint: " << hint << " reward: " << direction_reward.second << std::endl;
         if (direction_reward.first != -1) {
             Action::Slide slide(direction_reward.first);
+            last_move_code = unsigned(slide);
 
-            notify("player_action_code=" + std::to_string(unsigned(slide)));
             return slide;
         }
 
@@ -383,7 +397,7 @@ public:
 
         if (state == 1) { // Max node - before state
             int direction = -1;
-            float max_reward = -1;
+            float max_reward = INT64_MIN;
             for (int d = 0; d < 4; ++d) { //direction
                 Board64 child = board;
                 reward_t reward = child.Slide(d);
@@ -403,7 +417,10 @@ public:
             int child_count = 0;
             std::vector<int> positions = GetPlacingPosition(player_move);
 
-            bag[hint]--;
+            if(hint <= 3) {
+                bag[hint]--;
+            }
+
             if (is_empty(bag)) {
                 for (int i = 1; i <= 3; i++) {
                     bag[i] = 4;
@@ -494,7 +511,7 @@ private:
 
     bool is_empty(std::array<int, 4> bag) {
         for (int i = 1; i <= 3; i++) {
-            if (bag[i] != 0) {
+            if (bag[i] > 0) {
                 return false;
             }
         }
@@ -502,3 +519,5 @@ private:
         return true;
     }
 };
+
+int Agent::last_move_code = -1;

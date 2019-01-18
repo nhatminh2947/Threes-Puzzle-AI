@@ -62,10 +62,10 @@ public:
 			stat[ep.state().GetMaxTile()]++;
 			sop += ep.step();
 			pop += ep.step(Action::Slide::type_);
-			eop += ep.step(Action::Place::type);
+			eop += ep.step(Action::Place::type_);
 			sdu += ep.time();
 			pdu += ep.time(Action::Slide::type_);
-			edu += ep.time(Action::Place::type);
+			edu += ep.time(Action::Place::type_);
 		}
 
 		std::ios ff(nullptr);
@@ -84,7 +84,7 @@ public:
 		for (size_t t = 0, c = 0; c < blk; c += stat[t++]) {
 			if (stat[t] == 0) continue;
 			unsigned accu = std::accumulate(std::begin(stat) + t, std::end(stat), 0);
-			std::cout << "\t" << ((1 << (t-3)) * 3); // type
+			std::cout << "\t" << ((1 << (t-3)) * 3); // type_
 			std::cout << "\t" << (accu * 100.0 / blk) << "%"; // win rate
 			std::cout << "\t" "(" << (stat[t] * 100.0 / blk) << "%" ")"; // percentage of ending
 			std::cout << std::endl;

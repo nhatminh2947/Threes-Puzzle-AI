@@ -86,7 +86,7 @@ private:
         }
         auto it = lounge.find(name);
         if (it != lounge.end() && it->second->role()[0] == role[0]) return it->second;
-        return std::shared_ptr<Agent>(new Agent("name=" + name + " role=dummy"));
+        return std::shared_ptr<Agent>(new Agent("name=" + name + " role=dummy", 0));
     }
 
 public:

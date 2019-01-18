@@ -106,10 +106,10 @@ protected:
 
 class Action::Place : public Action {
 public:
-    static constexpr unsigned type = type_flag('p');
+    static constexpr unsigned type_ = type_flag('p');
 
     Place(unsigned pos, unsigned tile, unsigned hint = 0) : Action(
-            Place::type | (pos & 0x0f) | (std::min(tile, 35u) << 4) | (hint << 8)) {}
+            Place::type_ | (pos & 0x0f) | (std::min(tile, 35u) << 4) | (hint << 8)) {}
 
     Place(const Action &a = {}) : Action(a) {}
 
