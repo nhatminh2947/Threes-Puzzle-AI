@@ -297,7 +297,9 @@ public:
 
     Action TakeAction(const Board64 &board, const Action &evil_action) override {
         int tile = Action::Place(evil_action).tile();
-        bag_[tile]--;
+        if(tile <= 3) {
+            bag_[tile]--;
+        }
 
         return Policy(board);
     }
@@ -342,14 +344,14 @@ public:
                 depth = 7;
             }
         } else if (depth_setting_ == 5) {
-	    if (max_tile <= 6) {
+            if (max_tile <= 6) {
                 depth = 1;
             } else if (max_tile <= 12) {
                 depth = 3;
             } else {
                 depth = 5;
             }
-	}
+        }
 
         std::pair<int, int> direction_reward = Expectimax(1, board, -1, bag_, depth);
 
@@ -360,7 +362,7 @@ public:
         return Action();
     }
 
-    std::pair<int, int> Expectimax(int state, Board64 board, int player_move, std::array<int, 4> bag, int depth) {
+    std::pair<int, float> Expectimax(int state, Board64 board, int player_move, std::array<int, 4> bag, int depth) {
         if (board.IsTerminal()) {
             return std::make_pair(-1, 0);
         }
@@ -371,7 +373,7 @@ public:
 
         if (state == 1) { // Max node - before state
             int direction = -1;
-            float max_reward = -1;
+            float max_reward = INT64_MIN;
             for (int d = 0; d < 4; ++d) { //direction
                 Board64 child = board;
                 reward_t reward = child.Slide(d);
@@ -391,7 +393,10 @@ public:
             int child_count = 0;
             std::vector<int> positions = GetPlacingPosition(player_move);
 
-            bag[board.GetHint()]--;
+            if(board.GetHint() <= 3) {
+                bag[board.GetHint()]--;
+            }
+
             if (is_empty(bag)) {
                 for (int i = 1; i <= 3; i++) {
                     bag[i] = 4;
