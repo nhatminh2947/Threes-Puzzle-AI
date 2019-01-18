@@ -223,6 +223,9 @@ public:
     };
 
     void CloseEpisode(const std::string &flag = "") override {
+        for (int i = 1; i <= 3; i++) {
+            bag_[i] = 4;
+        }
     }
 
     void decreaseLearningRate10Times() {
