@@ -208,6 +208,251 @@ private:
     std::uniform_int_distribution<int> popup_;
 };
 
+class DareDevil : public RandomAgent {
+
+public:
+    DareDevil(const std::string &args = "") : RandomAgent("name=DareDevil role=environment " + args),
+                                                      positions_(
+                                                              {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}),
+                                                      popup_(1, 3),
+                                                      bag_({0, 4, 4, 4}) {}
+
+    Action TakeAction(const Board64 &board) {
+        Action::Slide player_action;
+        if (last_move_code != -1 && Action::Slide().type_ == Action::Slide(last_move_code).type()) {
+            player_action = Action::Slide(Action(last_move_code));
+        }
+
+        switch (Action::Slide(player_action).event()) {
+            case 0:
+                positions_ = {12, 13, 14, 15};
+                break;
+            case 1:
+                positions_ = {0, 4, 8, 12};
+                break;
+            case 2:
+                positions_ = {0, 1, 2, 3};
+                break;
+            case 3:
+                positions_ = {3, 7, 11, 15};
+                break;
+            default:
+                positions_ = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+                break;
+        }
+
+        int hint = engine_() % 3 + 1;
+        if (meta_.find("next_hint") != meta_.end() && int(meta_["next_hint"]) != -1) {
+            hint = int(meta_["next_hint"]);
+        }
+
+        std::shuffle(positions_.begin(), positions_.end(), engine_);
+
+        for (unsigned int position : positions_) {
+            int value = board.operator()(position);
+            if (value != 0) continue;
+
+            total_generated_tiles_++;
+
+            if (hint <= 3) {
+                bag_[hint]--;
+            }
+
+            int next_hint = GetBonusRandomTile(board);
+
+            if (next_hint == 0) {
+                bool empty_bag = true;
+                for (int i = 1; i <= 3; i++) {
+                    if (bag_[i] != 0) {
+                        empty_bag = false;
+                    }
+                }
+
+                if (empty_bag) {
+                    for (int i = 1; i <= 3; i++) {
+                        bag_[i] = 4;
+                    }
+                }
+
+                do {
+                    next_hint = engine_() % 3 + 1;
+                } while (bag_[next_hint] == 0);
+            }
+
+            std::string next_hint_notify = "next_hint=" + std::to_string(next_hint);
+            notify(next_hint_notify);
+
+            Action::Place place(position, hint, next_hint);
+            last_move_code = unsigned(place);
+
+            return place;
+        }
+
+        return Action();
+    }
+
+    std::vector<int> GetPlacingPosition(int player_move) {
+        switch (player_move) {
+            case 0:
+                return {12, 13, 14, 15};
+            case 1:
+                return {0, 4, 8, 12};
+            case 2:
+                return {0, 1, 2, 3};
+            case 3:
+                return {3, 7, 11, 15};
+            default:
+                return {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+        }
+    }
+
+    int GetTupleId(Board64 board) {
+        if (board.GetMaxTile() >= 13)
+            return 2;
+        if (board.GetMaxTile() >= 12)
+            return 1;
+
+        return 0;
+    }
+
+    float V(Board64 board, int hint, int id) {
+        return tuple_network_[id].GetValue(board, hint);
+    }
+
+    std::pair<int, int> MiniMax(int state, Board64 board, int player_move, std::array<int, 4> bag, int hint, int depth) {
+        if (board.IsTerminal()) {
+            return std::make_pair(-1, 0);
+        }
+
+        if (depth == 0) {
+            return std::make_pair(-1, V(board, hint, GetTupleId(board)));
+        }
+
+        if (state == 1) { // Max node - before state
+            int direction = -1;
+            float max_reward = INT64_MIN;
+            for (int d = 0; d < 4; ++d) { //direction
+                Board64 child = board;
+                reward_t reward = child.Slide(d);
+                if (child == board) continue;
+
+                std::pair<int, int> direction_reward = MiniMax(1 - state, child, d, bag, hint, depth - 1);
+
+                if (reward + direction_reward.second > max_reward) {
+                    max_reward = reward + direction_reward.second;
+                    direction = d;
+                }
+            }
+
+            return std::make_pair(direction, max_reward);
+        } else {
+            int placing_position = -1;
+            float min_reward = INT64_MAX;
+
+            std::vector<int> positions = GetPlacingPosition(player_move);
+
+            if(hint <= 3) {
+                bag[hint]--;
+            }
+
+            if (is_empty(bag)) {
+                for (int i = 1; i <= 3; i++) {
+                    bag[i] = 4;
+                }
+            }
+
+            for (int position : positions) {
+                if (board(position) != 0) continue;
+
+                Board64 child = board;
+                reward_t reward = child.Place(position, hint);
+
+                for (int next_hint = 1; next_hint <= 3; ++next_hint) {
+                    if (bag[next_hint] != 0) {
+                        std::pair<int, int> direction_reward = MiniMax(1 - state, child, -1, bag, next_hint,
+                                                                          depth - 1);
+
+                        if (reward + direction_reward.second < min_reward) {
+                            min_reward = reward + direction_reward.second;
+                            placing_position = position;
+                        }
+                    }
+                }
+            }
+
+            return std::make_pair(placing_position, min_reward);
+        }
+    }
+
+    void load(std::string file_name) {
+        for (int i = 0; i < 3; ++i) {
+            std::string fn = file_name;
+            fn.insert(fn.size() - 4, std::to_string(i));
+
+            std::ifstream load_stream(fn.c_str(), std::ios::in | std::ios::binary);
+            if (!load_stream.is_open()) std::exit(-1);
+
+            tuple_network_[i].load(load_stream);
+            load_stream.close();
+
+            std::cout << "Loaded " << i << " tuple" << std::endl;
+        }
+    }
+
+
+    void CloseEpisode(const std::string &flag = "") override {
+        for (int i = 1; i <= 3; i++) {
+            bag_[i] = 4;
+        }
+        positions_ = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+        std::string next_hint_notify = "next_hint=-1";
+        notify(next_hint_notify);
+    };
+
+private:
+    int GetBonusRandomTile(Board64 board) {
+        cell_t max_tile = board.GetMaxTile();
+
+        if (max_tile < 7) {
+            return 0;
+        }
+
+        if (engine_() % 21 != 0) {
+            return 0;
+        }
+
+        if ((n_bonus_tile_ + 1.0) / (1.0 * total_generated_tiles_) > 1.0 / 21.0) {
+            return 0;
+        }
+
+        n_bonus_tile_++;
+        int upper_bound = max_tile - 3;
+
+        return 4 + engine_() % (upper_bound - 4 + 1);
+    }
+
+private:
+    int n_bonus_tile_ = 0;
+    int total_generated_tiles_ = 0;
+    std::array<int, 4> bag_;
+    std::vector<unsigned int> positions_;
+    std::uniform_int_distribution<int> popup_;
+
+    std::string file_name_;
+    std::vector<NTupleNetwork> tuple_network_;
+
+
+    bool is_empty(std::array<int, 4> bag) {
+        for (int i = 1; i <= 3; i++) {
+            if (bag[i] > 0) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+};
+
 class TdLambdaPlayer : public Player {
 public:
     TdLambdaPlayer(const std::string &args = "") : Player("name=TDLambda role=Player " + args),
