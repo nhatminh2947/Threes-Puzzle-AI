@@ -223,6 +223,12 @@ public:
         }
     };
 
+    void OpenEpisode(const std::string &flag = "") override {
+        for (int i = 0; i < 3; i++) {
+            game_stage_counter[i] = 0;
+        }
+    }
+
     void CloseEpisode(const std::string &flag = "") override {
         for (int i = 1; i <= 3; i++) {
             bag_[i] = 4;
@@ -245,10 +251,17 @@ public:
                 Board64 after_state_next = Board64(moves[i + 2].board, moves[i + 2].hint);
 
                 tuple_network_[id].UpdateValue(after_state,
-                                               learning_rate_ * (GetReward(i, moves) - V(after_state, id)));
+                                               learning_rate_ / ((game_stage_counter[i] > 10000000) ? 10 : 1) *
+                                               (GetReward(i, moves) - V(after_state, id)));
             } else {
-                tuple_network_[id].UpdateValue(after_state, learning_rate_ * (-V(after_state, id)));
+                tuple_network_[id].UpdateValue(after_state, learning_rate_ / ((game_stage_counter[i] > 10000000) ? 10 : 1) *
+                                                            (-V(after_state, id)));
             }
+        }
+
+        id = GetTupleId(Board64(moves.back().board, moves.back().hint));
+        for(int i = 0; i <= id; i++) {
+            game_stage_counter[i]++;
         }
     }
 
@@ -301,7 +314,7 @@ public:
 
     Action TakeAction(const Board64 &board, const Action &evil_action) override {
         int tile = Action::Place(evil_action).tile();
-        if(tile <= 3) {
+        if (tile <= 3) {
             bag_[tile]--;
         }
 
@@ -397,7 +410,7 @@ public:
             int child_count = 0;
             std::vector<int> positions = GetPlacingPosition(player_move);
 
-            if(board.GetHint() <= 3) {
+            if (board.GetHint() <= 3) {
                 bag[board.GetHint()]--;
             }
 
@@ -483,6 +496,7 @@ private:
     int depth_setting_;
     float learning_rate_;
     float lambda_;
+    int game_stage_counter[3];
 
     std::string file_name_;
     std::vector<NTupleNetwork> tuple_network_;
