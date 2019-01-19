@@ -162,6 +162,7 @@ public:
             bag_[i] = 4;
         }
         positions_ = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+        total_generated_tiles_ = n_bonus_tile_ = 0;
     };
 
 private:
@@ -310,7 +311,7 @@ public:
     Action Policy(Board64 board) {
         int max_tile = board.GetMaxTile();
 
-        int depth = 3;
+        int depth = 1;
 
         if (depth_setting_ == 0) {
             depth = 3;
