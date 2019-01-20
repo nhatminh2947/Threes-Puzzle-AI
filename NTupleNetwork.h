@@ -392,10 +392,7 @@ public:
 
     float GetValue(Board64 board, int hint) {
         float total_value = 0;
-//        board.Print();
-//        std::cout << hint << std::endl;
         for (auto &tuple : tuples) {
-//            std::cout << tuple->GetValue(board, hint) << std::endl;
             total_value += tuple->GetValue(board, hint);
         }
 

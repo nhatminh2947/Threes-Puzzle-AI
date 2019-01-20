@@ -89,7 +89,7 @@ protected:
 class RandomEnvironment : public RandomAgent {
 
 public:
-    RandomEnvironment(const std::string &args = "") : RandomAgent("name=random role=environment " + args),
+    RandomEnvironment(const std::string &args = "") : RandomAgent("name=randomevil role=environment " + args),
                                                       positions_(
                                                               {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}),
                                                       popup_(1, 3),
@@ -176,6 +176,7 @@ public:
         positions_ = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
         std::string next_hint_notify = "next_hint=-1";
         notify(next_hint_notify);
+        total_generated_tiles_ = n_bonus_tile_ = 0;
     };
 
 private:
@@ -212,83 +213,85 @@ class DareDevil : public RandomAgent {
 
 public:
     DareDevil(const std::string &args = "") : RandomAgent("name=DareDevil role=environment " + args),
-                                                      positions_(
-                                                              {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}),
-                                                      popup_(1, 3),
-                                                      bag_({0, 4, 4, 4}) {}
+                                              positions_({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}),
+                                              popup_(1, 3),
+                                              bag_({0, 4, 4, 4}),
+                                              depth_setting_(2) {
+
+        if (meta_.find("ddepth") != meta_.end()) {
+            depth_setting_ = int(meta_["ddepth"]);
+        }
+
+        tuple_network_ = std::vector<NTupleNetwork>(3);
+
+        if (meta_.find("load") != meta_.end()) {
+            std::string file_name = meta_["load"].value;
+            load(file_name);
+        }
+    }
 
     Action TakeAction(const Board64 &board) {
         Action::Slide player_action;
-        if (last_move_code != -1 && Action::Slide().type_ == Action::Slide(last_move_code).type()) {
+        if (last_move_code != -1 && Action::Slide::type_ == Action::Slide(last_move_code).type()) {
             player_action = Action::Slide(Action(last_move_code));
         }
-
-        switch (Action::Slide(player_action).event()) {
-            case 0:
-                positions_ = {12, 13, 14, 15};
-                break;
-            case 1:
-                positions_ = {0, 4, 8, 12};
-                break;
-            case 2:
-                positions_ = {0, 1, 2, 3};
-                break;
-            case 3:
-                positions_ = {3, 7, 11, 15};
-                break;
-            default:
-                positions_ = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
-                break;
-        }
+        int max_tile = board.GetMaxTile();
 
         int hint = engine_() % 3 + 1;
         if (meta_.find("next_hint") != meta_.end() && int(meta_["next_hint"]) != -1) {
             hint = int(meta_["next_hint"]);
         }
 
-        std::shuffle(positions_.begin(), positions_.end(), engine_);
+        int player_move = player_action.event();
 
-        for (unsigned int position : positions_) {
-            int value = board.operator()(position);
-            if (value != 0) continue;
-
-            total_generated_tiles_++;
-
-            if (hint <= 3) {
-                bag_[hint]--;
-            }
-
-            int next_hint = GetBonusRandomTile(board);
-
-            if (next_hint == 0) {
-                bool empty_bag = true;
-                for (int i = 1; i <= 3; i++) {
-                    if (bag_[i] != 0) {
-                        empty_bag = false;
-                    }
-                }
-
-                if (empty_bag) {
-                    for (int i = 1; i <= 3; i++) {
-                        bag_[i] = 4;
-                    }
-                }
-
-                do {
-                    next_hint = engine_() % 3 + 1;
-                } while (bag_[next_hint] == 0);
-            }
-
-            std::string next_hint_notify = "next_hint=" + std::to_string(next_hint);
-            notify(next_hint_notify);
-
-            Action::Place place(position, hint, next_hint);
-            last_move_code = unsigned(place);
-
-            return place;
+        int depth = 2;
+        if (depth_setting_ == 0) {
+            depth = 6;
+        } else if (depth_setting_ == 1) {
+            depth = 8;
+        } else if (depth_setting_ == 2) {
+            if (max_tile <= 9) {
+                depth = 6;
+            } else if (max_tile <= 11) {
+                depth = 8;
+            } else {
+		depth = 10;
+	    }
         }
 
-        return Action();
+        std::pair<int, float> position_reward = MiniMax(0, board, player_move, bag_, hint, depth);
+
+        total_generated_tiles_++;
+
+        if (hint <= 3) {
+            bag_[hint]--;
+        }
+
+        int next_hint = GetBonusRandomTile(board);
+
+        if (next_hint == 0) {
+            bool empty_bag = true;
+            for (int i = 1; i <= 3; i++) {
+                if (bag_[i] != 0) {
+                    empty_bag = false;
+                }
+            }
+
+            if (empty_bag) {
+                for (int i = 1; i <= 3; i++) {
+                    bag_[i] = 4;
+                }
+            }
+
+            do {
+                next_hint = engine_() % 3 + 1;
+            } while (bag_[next_hint] == 0);
+        }
+
+        std::string next_hint_notify = "next_hint=" + std::to_string(next_hint);
+        notify(next_hint_notify);
+
+        return Action::Place(position_reward.first, hint, next_hint);
     }
 
     std::vector<int> GetPlacingPosition(int player_move) {
@@ -319,7 +322,8 @@ public:
         return tuple_network_[id].GetValue(board, hint);
     }
 
-    std::pair<int, int> MiniMax(int state, Board64 board, int player_move, std::array<int, 4> bag, int hint, int depth) {
+    std::pair<int, float>
+    MiniMax(int state, Board64 board, int player_move, std::array<int, 4> bag, int hint, int depth) {
         if (board.IsTerminal()) {
             return std::make_pair(-1, 0);
         }
@@ -336,7 +340,7 @@ public:
                 reward_t reward = child.Slide(d);
                 if (child == board) continue;
 
-                std::pair<int, int> direction_reward = MiniMax(1 - state, child, d, bag, hint, depth - 1);
+                std::pair<int, float> direction_reward = MiniMax(1 - state, child, d, bag, hint, depth - 1);
 
                 if (reward + direction_reward.second > max_reward) {
                     max_reward = reward + direction_reward.second;
@@ -351,7 +355,7 @@ public:
 
             std::vector<int> positions = GetPlacingPosition(player_move);
 
-            if(hint <= 3) {
+            if (hint <= 3) {
                 bag[hint]--;
             }
 
@@ -369,8 +373,8 @@ public:
 
                 for (int next_hint = 1; next_hint <= 3; ++next_hint) {
                     if (bag[next_hint] != 0) {
-                        std::pair<int, int> direction_reward = MiniMax(1 - state, child, -1, bag, next_hint,
-                                                                          depth - 1);
+                        std::pair<int, float> direction_reward = MiniMax(1 - state, child, -1, bag, next_hint,
+                                                                         depth - 1);
 
                         if (reward + direction_reward.second < min_reward) {
                             min_reward = reward + direction_reward.second;
@@ -407,6 +411,8 @@ public:
         positions_ = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
         std::string next_hint_notify = "next_hint=-1";
         notify(next_hint_notify);
+        last_move_code = -1;
+        total_generated_tiles_ = n_bonus_tile_ = 0;
     };
 
 private:
@@ -434,13 +440,11 @@ private:
 private:
     int n_bonus_tile_ = 0;
     int total_generated_tiles_ = 0;
+    int depth_setting_;
     std::array<int, 4> bag_;
     std::vector<unsigned int> positions_;
     std::uniform_int_distribution<int> popup_;
-
-    std::string file_name_;
     std::vector<NTupleNetwork> tuple_network_;
-
 
     bool is_empty(std::array<int, 4> bag) {
         for (int i = 1; i <= 3; i++) {
@@ -455,9 +459,9 @@ private:
 
 class TdLambdaPlayer : public Player {
 public:
-    TdLambdaPlayer(const std::string &args = "") : Player("name=TDLambda role=Player " + args),
+    TdLambdaPlayer(const std::string &args = "") : Player("name=fightme role=player " + args),
                                                    lambda_(0.5), learning_rate_(0.0025), tuple_size_(3),
-                                                   bag_({0, 4, 4, 4}), depth_setting_(1) {
+                                                   bag_({0, 4, 4, 4}), depth_setting_(0) {
 
         tuple_network_ = std::vector<NTupleNetwork>(tuple_size_);
 
@@ -484,6 +488,7 @@ public:
         for (int i = 1; i <= 3; i++) {
             bag_[i] = 4;
         }
+        last_move_code = -1;
     };
 
     void decreaseLearningRate10Times() {
@@ -556,7 +561,7 @@ public:
         int hint = evil_action.hint();
         int tile = evil_action.tile();
 
-        if(tile <= 3) {
+        if (tile <= 3) {
             bag_[tile]--;
         }
 
@@ -572,7 +577,7 @@ public:
     Action Policy(Board64 board, int hint) {
         int max_tile = board.GetMaxTile();
 
-        int depth = 3;
+        int depth = 1;
 
         if (depth_setting_ == 0) {
             depth = 3;
@@ -618,11 +623,9 @@ public:
             }
         }
 
-        std::pair<int, int> direction_reward = Expectimax(1, board, -1, bag_, hint, depth);
-//        std::cout << "direction: " << direction_reward.first << " hint: " << hint << " reward: " << direction_reward.second << std::endl;
+        std::pair<int, float> direction_reward = Expectimax(1, board, -1, bag_, hint, depth);
         if (direction_reward.first != -1) {
             Action::Slide slide(direction_reward.first);
-            last_move_code = unsigned(slide);
 
             return slide;
         }
@@ -630,7 +633,7 @@ public:
         return Action();
     }
 
-    std::pair<int, int>
+    std::pair<int, float>
     Expectimax(int state, Board64 board, int player_move, std::array<int, 4> bag, int hint, int depth) {
         if (board.IsTerminal()) {
             return std::make_pair(-1, 0);
@@ -648,7 +651,7 @@ public:
                 reward_t reward = child.Slide(d);
                 if (child == board) continue;
 
-                std::pair<int, int> direction_reward = Expectimax(1 - state, child, d, bag, hint, depth - 1);
+                std::pair<int, float> direction_reward = Expectimax(1 - state, child, d, bag, hint, depth - 1);
 
                 if (reward + direction_reward.second > max_reward) {
                     max_reward = reward + direction_reward.second;
@@ -662,7 +665,7 @@ public:
             int child_count = 0;
             std::vector<int> positions = GetPlacingPosition(player_move);
 
-            if(hint <= 3) {
+            if (hint <= 3) {
                 bag[hint]--;
             }
 
@@ -680,8 +683,8 @@ public:
 
                 for (int next_hint = 1; next_hint <= 3; ++next_hint) {
                     if (bag[next_hint] != 0) {
-                        std::pair<int, int> direction_reward = Expectimax(1 - state, child, -1, bag, next_hint,
-                                                                          depth - 1);
+                        std::pair<int, float> direction_reward = Expectimax(1 - state, child, -1, bag, next_hint,
+                                                                            depth - 1);
 
                         score += reward;
                         score += direction_reward.second;
@@ -731,10 +734,16 @@ public:
     void load(std::string file_name) {
         for (int i = 0; i < tuple_size_; ++i) {
             std::string fn = file_name;
+
             fn.insert(fn.size() - 4, std::to_string(i));
 
+            std::cout << "Loading " << fn << std::endl;
+
             std::ifstream load_stream(fn.c_str(), std::ios::in | std::ios::binary);
-            if (!load_stream.is_open()) std::exit(-1);
+
+            if (!load_stream.is_open()) {
+                std::exit(-1);
+            }
 
             tuple_network_[i].load(load_stream);
             load_stream.close();

@@ -28,13 +28,19 @@ int shell(int argc, const char *argv[]) {
         } else if (para.find("--save=") == 0 || para.find("--dump=") == 0) {
             host.set_dump_file(para.substr(para.find("=") + 1));
         } else if (para.find("--play") == 0) {
-            std::shared_ptr<Agent> play(new Player(para.substr(para.find("=") + 1)));
-            host.register_agent(play);
+            std::cout << "PLAYER ENTER" << std::endl;
+//            std::shared_ptr<Agent> play(new TdLambdaPlayer(para.substr(para.find("=") + 1)));
+//            host.register_agent(play);
+            std::cout << "PLAYER REGISTERED" << std::endl;
         } else if (para.find("--evil") == 0) {
-            std::shared_ptr<Agent> evil(new RandomEnvironment(para.substr(para.find("=") + 1)));
+            std::cout << "EVIL ENTER" << std::endl;
+            std::shared_ptr<Agent> evil(new DareDevil(para.substr(para.find("=") + 1)));
             host.register_agent(evil);
+            std::cout << "EVIL REGISTERED" << std::endl;
         }
     }
+
+    std::cout << "LOADED SETTING" << std::endl;
 
     std::regex match_move("^#\\S+ \\S+$"); // e.g. "#M0001 ?", "#M0001 #U"
     std::regex match_ctrl("^#\\S+ \\S+ \\S+$"); // e.g. "#M0001 open Slider:Placer", "#M0001 close score=15424"
@@ -46,26 +52,13 @@ int shell(int argc, const char *argv[]) {
             if (std::regex_match(command, match_move)) {
                 std::string id, move;
                 std::stringstream(command) >> id >> move;
-
-//                if (move == "?") {
-//                    // your agent need to take an action
-//                    Action a = host.at(id).take_action();
-//                    host.at(id).ApplyAction(a);
-//                    output() << id << ' ' << a << std::endl;
-//                } else {
-//                    // perform your opponent's action
-//                    Action a;
-//                    std::stringstream(move) >> a;
-//                    host.at(id).ApplyAction(a);
-//                }
-
                 if (move == "?") {
                     // your agent need to take an action
                     Action a = host.at(id).take_action();
                     host.at(id).ApplyAction(a);
                     if (a.type() == Action::Place::type_) {
                         int hint = Action::Place(a).hint(); // your hint tile here
-                        output() << id << ' ' << a << '+' << hint << std::endl;
+                        output() << id << ' ' << a << '+' << std::min(4, hint) << std::endl;
                     } else {
                         output() << id << ' ' << a << std::endl;
                     }
@@ -76,7 +69,13 @@ int shell(int argc, const char *argv[]) {
                     int hint = 0;
                     if (a.type() == Action::Place::type_) {
                         hint = move[3] - '0'; // move should be "PT+H" where H is '1', '2', '3', or '4'
+
+                        Action::Place placing_action(Action::Place(a).position(),Action::Place(a).tile(), hint);
+                        Agent::last_move_code = unsigned(placing_action);
+                    } else {
+                        Agent::last_move_code = unsigned(a);
                     }
+
                     host.at(id).ApplyAction(a); // you should pass the hint tile to your player
                 }
 
@@ -93,6 +92,7 @@ int shell(int argc, const char *argv[]) {
                     }
                 } else if (ctrl == "close") {
                     // a match is finished
+                    
                     host.close(id, tag);
                 }
 
@@ -201,36 +201,24 @@ int main(int argc, const char *argv[]) {
     }
 
     TdLambdaPlayer player(play_args);
-    RandomEnvironment evil(evil_args);
+    DareDevil evil(evil_args);
 
-    int count = 0;
     while (!stat.IsFinished()) {
-//        std::cout << count << std::endl;
         player.OpenEpisode("~:" + evil.name());
         evil.OpenEpisode(player.name() + ":~");
 
         stat.OpenEpisode(player.name() + ":" + evil.name());
         Episode &game = stat.Back();
-//        std::cout << "Start playing" << std::endl;
-        int moves = 0;
-        while (true) {
-//            game.state().Print();
 
+        while (true) {
             Agent &agent = game.TakeTurns(player, evil);
-//            std::cout << "moves = " << moves << " " << agent.name() << std::endl;
             Action move = agent.TakeAction(game.state());
-//            std::cout << move << std::endl;
 
             if (!game.ApplyAction(move)) {
                 break;
             }
-//            std::cout << "applied action" << std::endl;
             if (agent.CheckForWin(game.state())) break;
-//            std::cout << "CheckForWin" << std::endl;
-            moves++;
         }
-//        std::cout << "Finished" << std::endl;
-
         Agent &win = game.TakeLastTurns(player, evil);
         stat.CloseEpisode(win.name());
 
@@ -248,7 +236,6 @@ int main(int argc, const char *argv[]) {
 
         player.CloseEpisode(win.name());
         evil.CloseEpisode(win.name());
-        count++;
     }
 
     if (summary) {
