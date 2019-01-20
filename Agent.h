@@ -91,7 +91,6 @@ public:
                                                       positions_(
                                                               {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}),
                                                       popup_(1, 3),
-                                                      hint(0),
                                                       bag_({0, 4, 4, 4}) {}
 
     Action TakeAction(const Board64 &board, const Action &player_action) {
@@ -190,7 +189,6 @@ private:
 private:
     int n_bonus_tile_ = 0;
     int total_generated_tiles_ = 0;
-    int hint;
     std::array<int, 4> bag_;
     std::vector<unsigned int> positions_;
     std::uniform_int_distribution<int> popup_;
@@ -227,6 +225,8 @@ public:
         for (int i = 0; i < 3; i++) {
             game_stage_counter[i] = 0;
         }
+        game_stage_counter[0] = 5000000;
+        game_stage_counter[1] = 3000000;
     }
 
     void CloseEpisode(const std::string &flag = "") override {
@@ -251,10 +251,10 @@ public:
                 Board64 after_state_next = Board64(moves[i + 2].board, moves[i + 2].hint);
 
                 tuple_network_[id].UpdateValue(after_state,
-                                               learning_rate_ / ((game_stage_counter[i] > 10000000) ? 10 : 1) *
+                                               learning_rate_ / ((game_stage_counter[i] > 5000000) ? 10 : 1) *
                                                (GetReward(i, moves) - V(after_state, id)));
             } else {
-                tuple_network_[id].UpdateValue(after_state, learning_rate_ / ((game_stage_counter[i] > 10000000) ? 10 : 1) *
+                tuple_network_[id].UpdateValue(after_state, learning_rate_ / ((game_stage_counter[i] > 5000000) ? 10 : 1) *
                                                             (-V(after_state, id)));
             }
         }
@@ -262,6 +262,11 @@ public:
         id = GetTupleId(Board64(moves.back().board, moves.back().hint));
         for(int i = 0; i <= id; i++) {
             game_stage_counter[i]++;
+
+
+            if(game_stage_counter[i] % 10000 == 0) {
+                std::cout << "LEARNED " << game_stage_counter[i] << "at stage " << i << std::endl;
+            }
         }
     }
 
@@ -370,7 +375,7 @@ public:
             }
         }
 
-        std::pair<int, int> direction_reward = Expectimax(1, board, -1, bag_, depth);
+        std::pair<int, float> direction_reward = Expectimax(1, board, -1, bag_, depth);
 
         if (direction_reward.first != -1) {
             return Action::Slide(direction_reward.first);
@@ -396,7 +401,7 @@ public:
                 reward_t reward = child.Slide(d);
                 if (child == board) continue;
 
-                std::pair<int, int> direction_reward = Expectimax(1 - state, child, d, bag, depth - 1);
+                std::pair<int, float> direction_reward = Expectimax(1 - state, child, d, bag, depth - 1);
 
                 if (reward + direction_reward.second > max_reward) {
                     max_reward = reward + direction_reward.second;
@@ -429,7 +434,7 @@ public:
                 for (int tile = 1; tile <= 3; ++tile) {
                     if (bag[tile] != 0) {
                         child.SetHint(tile);
-                        std::pair<int, int> direction_reward = Expectimax(1 - state, child, -1, bag, depth - 1);
+                        std::pair<int, float> direction_reward = Expectimax(1 - state, child, -1, bag, depth - 1);
 
                         score += reward;
                         score += direction_reward.second;
