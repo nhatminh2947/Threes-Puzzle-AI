@@ -212,7 +212,7 @@ private:
 class DareDevil : public RandomAgent {
 
 public:
-    DareDevil(const std::string &args = "") : RandomAgent("name=DareDevil role=environment " + args),
+    DareDevil(const std::string &args = "") : RandomAgent("name=devil role=environment " + args),
                                               positions_({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}),
                                               popup_(1, 3),
                                               bag_({0, 4, 4, 4}),
@@ -248,15 +248,20 @@ public:
         if (depth_setting_ == 0) {
             depth = 6;
         } else if (depth_setting_ == 1) {
-            depth = 8;
+	    if(max_tile <= 9) {
+		depth=6;
+	    }
+            else {
+		depth = 8;
+	    }
         } else if (depth_setting_ == 2) {
-            if (max_tile <= 9) {
+            if (max_tile <= 11) {
                 depth = 6;
-            } else if (max_tile <= 11) {
+            } else if (max_tile <= 12) {
                 depth = 8;
             } else {
-		depth = 10;
-	    }
+                depth = 10;
+            }
         }
 
         std::pair<int, float> position_reward = MiniMax(0, board, player_move, bag_, hint, depth);
@@ -580,12 +585,12 @@ public:
         int depth = 1;
 
         if (depth_setting_ == 0) {
-            depth = 3;
+            depth = 7;
         } else if (depth_setting_ == 1) { //BEST SETTING
-            if (max_tile <= 11) {
-                depth = 3;
+            if (max_tile <= 12) {
+                depth = 7;
             } else {
-                depth = 5;
+                depth = 9;
             }
         } else if (depth_setting_ == 2) { //GOOD SETTING
             if (max_tile <= 11) {

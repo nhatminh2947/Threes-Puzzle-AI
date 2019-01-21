@@ -29,8 +29,8 @@ int shell(int argc, const char *argv[]) {
             host.set_dump_file(para.substr(para.find("=") + 1));
         } else if (para.find("--play") == 0) {
             std::cout << "PLAYER ENTER" << std::endl;
-//            std::shared_ptr<Agent> play(new TdLambdaPlayer(para.substr(para.find("=") + 1)));
-//            host.register_agent(play);
+            std::shared_ptr<Agent> play(new TdLambdaPlayer(para.substr(para.find("=") + 1)));
+            host.register_agent(play);
             std::cout << "PLAYER REGISTERED" << std::endl;
         } else if (para.find("--evil") == 0) {
             std::cout << "EVIL ENTER" << std::endl;
