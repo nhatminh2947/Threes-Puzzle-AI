@@ -200,7 +200,7 @@ int main(int argc, const char *argv[]) {
         summary |= stat.IsFinished();
     }
 
-    TdLambdaPlayer player(play_args);
+    Player player(play_args);
     DareDevil evil(evil_args);
 
     while (!stat.IsFinished()) {
@@ -217,22 +217,24 @@ int main(int argc, const char *argv[]) {
             if (!game.ApplyAction(move)) {
                 break;
             }
-            if (agent.CheckForWin(game.state())) break;
+            if (agent.CheckForWin(game.state())) {
+                break;
+            }
         }
         Agent &win = game.TakeLastTurns(player, evil);
         stat.CloseEpisode(win.name());
 
-        if (learning) {
-            player.Learn(game);
-
-            if (stat.IsBackup()) {
-                player.save();
-            }
-
-            if (stat.NGames() >= total / 2) {
-                player.decreaseLearningRate10Times();
-            }
-        }
+//        if (learning) {
+//            player.Learn(game);
+//
+//            if (stat.IsBackup()) {
+//                player.save();
+//            }
+//
+//            if (stat.NGames() >= total / 2) {
+//                player.decreaseLearningRate10Times();
+//            }
+//        }
 
         player.CloseEpisode(win.name());
         evil.CloseEpisode(win.name());

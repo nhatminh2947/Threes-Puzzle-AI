@@ -228,6 +228,7 @@ public:
             std::string file_name = meta_["load"].value;
             load(file_name);
         }
+        next_hint_ = -1;
     }
 
     Action TakeAction(const Board64 &board) {
@@ -238,8 +239,8 @@ public:
         int max_tile = board.GetMaxTile();
 
         int hint = engine_() % 3 + 1;
-        if (meta_.find("next_hint") != meta_.end() && int(meta_["next_hint"]) != -1) {
-            hint = int(meta_["next_hint"]);
+        if(next_hint_ != -1) {
+            hint = next_hint_;
         }
 
         int player_move = player_action.event();
@@ -293,8 +294,7 @@ public:
             } while (bag_[next_hint] == 0);
         }
 
-        std::string next_hint_notify = "next_hint=" + std::to_string(next_hint);
-        notify(next_hint_notify);
+        next_hint_ = next_hint;
 
         return Action::Place(position_reward.first, hint, next_hint);
     }
@@ -408,16 +408,25 @@ public:
         }
     }
 
-
-    void CloseEpisode(const std::string &flag = "") override {
+    void OpenEpisode(const std::string &flag = "") override {
         for (int i = 1; i <= 3; i++) {
             bag_[i] = 4;
         }
         positions_ = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
-        std::string next_hint_notify = "next_hint=-1";
-        notify(next_hint_notify);
         last_move_code = -1;
         total_generated_tiles_ = n_bonus_tile_ = 0;
+        next_hint_ = -1;
+    }
+
+    void CloseEpisode(const std::string &flag = "") override {
+
+        for (int i = 1; i <= 3; i++) {
+            bag_[i] = 4;
+        }
+        positions_ = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+        last_move_code = -1;
+        total_generated_tiles_ = n_bonus_tile_ = 0;
+        next_hint_ = -1;
     };
 
 private:
@@ -446,6 +455,7 @@ private:
     int n_bonus_tile_ = 0;
     int total_generated_tiles_ = 0;
     int depth_setting_;
+    int next_hint_ = -1;
     std::array<int, 4> bag_;
     std::vector<unsigned int> positions_;
     std::uniform_int_distribution<int> popup_;
@@ -488,6 +498,13 @@ public:
             std::cout << file_name_ << std::endl;
         }
     };
+
+    void OpenEpisode(const std::string &flag = "") override {
+        for (int i = 1; i <= 3; i++) {
+            bag_[i] = 4;
+        }
+        last_move_code = -1;
+    }
 
     void CloseEpisode(const std::string &flag = "") override {
         for (int i = 1; i <= 3; i++) {
@@ -585,7 +602,7 @@ public:
         int depth = 1;
 
         if (depth_setting_ == 0) {
-            depth = 7;
+            depth = 3;
         } else if (depth_setting_ == 1) { //BEST SETTING
             if (max_tile <= 12) {
                 depth = 7;

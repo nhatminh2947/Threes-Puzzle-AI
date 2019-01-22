@@ -44,6 +44,8 @@ public:
         return *(ongoing.at(id));
     }
     bool open(const std::string& id, const std::string& tag) {
+        if (ongoing.size()) return false;
+
         if (ongoing.find(id) != ongoing.end()) return false;
 
         auto play = find_agent(tag.substr(0, tag.find(':')), "play");
