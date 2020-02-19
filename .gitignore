@@ -4,6 +4,7 @@
 weights/
 threes
 CMakeLists.txt
+arena-link-*
 *.pdf
 *.out
 *.txt

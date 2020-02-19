@@ -49,7 +49,7 @@ class Board64 {
 public:
     Board64() : board_() {}
 
-    Board64(const board_t &board) : board_(board) {}
+    Board64(const board_t &board, const int hint = 0) : board_(board) {}
 
     Board64(const Board64 &board) = default;
 
@@ -123,22 +123,24 @@ public:
         return out;
     }
 
-    /**
-     * place a tile (index value) to the specific position (1-d form index)
-     * return 0 if the action is valid, or -1 if not
-     */
     reward_t Place(unsigned int position, cell_t tile) {
         if (position >= 16) return -1;
-        if (tile != 1 && tile != 2 && tile != 3) return -1;
+//        if (tile != 1 && tile != 2 && tile != 3) return -1;
 
         board_t row_id = position / 4;
         board_t col_id = position % 4;
 
         board_t row = board_t(tile) << (row_id * 16);
         board_t cell = row << (col_id * 4);
-        board_ = board_ | cell;
+        board_t after_place_board = board_ | cell;
+        reward_t reward = GetReward(board_, after_place_board);
+        board_ = after_place_board;
 
-        return GetBoardScore(board_);
+        return reward;
+    }
+
+    reward_t GetReward(board_t b1, board_t b2) {
+        return GetBoardScore(b2) - GetBoardScore(b1);
     }
 
     /**
@@ -161,61 +163,67 @@ public:
     }
 
     reward_t SlideLeft() {
-        board_t ret = board_;
+        board_t after_slide_board = board_;
 
-        ret ^= board_t(row_left_table[(board_ >> 0) & ROW_MASK]) << 0;
-        ret ^= board_t(row_left_table[(board_ >> 16) & ROW_MASK]) << 16;
-        ret ^= board_t(row_left_table[(board_ >> 32) & ROW_MASK]) << 32;
-        ret ^= board_t(row_left_table[(board_ >> 48) & ROW_MASK]) << 48;
+        after_slide_board ^= board_t(row_left_table[(board_ >> 0) & ROW_MASK]) << 0;
+        after_slide_board ^= board_t(row_left_table[(board_ >> 16) & ROW_MASK]) << 16;
+        after_slide_board ^= board_t(row_left_table[(board_ >> 32) & ROW_MASK]) << 32;
+        after_slide_board ^= board_t(row_left_table[(board_ >> 48) & ROW_MASK]) << 48;
 
-        this->board_ = ret;
+        reward_t reward = GetReward(board_, after_slide_board);
+        this->board_ = after_slide_board;
 
-        return GetBoardScore(ret);
+        return reward;
     }
 
     reward_t SlideRight() {
-        board_t ret = board_;
+        board_t after_slide_board = board_;
 
-        ret ^= board_t(row_right_table[(board_ >> 0) & ROW_MASK]) << 0;
-        ret ^= board_t(row_right_table[(board_ >> 16) & ROW_MASK]) << 16;
-        ret ^= board_t(row_right_table[(board_ >> 32) & ROW_MASK]) << 32;
-        ret ^= board_t(row_right_table[(board_ >> 48) & ROW_MASK]) << 48;
+        after_slide_board ^= board_t(row_right_table[(board_ >> 0) & ROW_MASK]) << 0;
+        after_slide_board ^= board_t(row_right_table[(board_ >> 16) & ROW_MASK]) << 16;
+        after_slide_board ^= board_t(row_right_table[(board_ >> 32) & ROW_MASK]) << 32;
+        after_slide_board ^= board_t(row_right_table[(board_ >> 48) & ROW_MASK]) << 48;
 
-        this->board_ = ret;
+        reward_t reward = GetReward(board_, after_slide_board);
+        this->board_ = after_slide_board;
 
-        return GetBoardScore(ret);
+        return reward;
     }
 
     reward_t SlideUp() {
-        board_t ret = board_;
+        board_t after_slide_board = board_;
         board_t transpose_board = ::Transpose(board_);
 
-        ret ^= col_up_table[(transpose_board >> 0) & ROW_MASK] << 0;
-        ret ^= col_up_table[(transpose_board >> 16) & ROW_MASK] << 4;
-        ret ^= col_up_table[(transpose_board >> 32) & ROW_MASK] << 8;
-        ret ^= col_up_table[(transpose_board >> 48) & ROW_MASK] << 12;
-        this->board_ = ret;
+        after_slide_board ^= col_up_table[(transpose_board >> 0) & ROW_MASK] << 0;
+        after_slide_board ^= col_up_table[(transpose_board >> 16) & ROW_MASK] << 4;
+        after_slide_board ^= col_up_table[(transpose_board >> 32) & ROW_MASK] << 8;
+        after_slide_board ^= col_up_table[(transpose_board >> 48) & ROW_MASK] << 12;
 
-        return GetBoardScore(ret);
+        reward_t reward = GetReward(board_, after_slide_board);
+        this->board_ = after_slide_board;
+
+        return reward;
     }
 
     reward_t SlideDown() {
-        board_t ret = board_;
+        board_t after_slide_board = board_;
         board_t transpose_board = ::Transpose(board_);
 
-        ret ^= col_down_table[(transpose_board >> 0) & ROW_MASK] << 0;
-        ret ^= col_down_table[(transpose_board >> 16) & ROW_MASK] << 4;
-        ret ^= col_down_table[(transpose_board >> 32) & ROW_MASK] << 8;
-        ret ^= col_down_table[(transpose_board >> 48) & ROW_MASK] << 12;
-        this->board_ = ret;
+        after_slide_board ^= col_down_table[(transpose_board >> 0) & ROW_MASK] << 0;
+        after_slide_board ^= col_down_table[(transpose_board >> 16) & ROW_MASK] << 4;
+        after_slide_board ^= col_down_table[(transpose_board >> 32) & ROW_MASK] << 8;
+        after_slide_board ^= col_down_table[(transpose_board >> 48) & ROW_MASK] << 12;
 
-        return GetBoardScore(ret);
+        reward_t reward = GetReward(board_, after_slide_board);
+        this->board_ = after_slide_board;
+
+        return reward;
     }
 
-    float GetHeuristicScore() {
-        return ScoreHelper(board_, heur_score_table) +
-               ScoreHelper(::Transpose(board_), heur_score_table);
-    }
+//    float GetHeuristicScore() {
+//        return ScoreHelper(board_, heur_score_table) +
+//               ScoreHelper(::Transpose(board_), heur_score_table);
+//    }
 
     cell_t GetMaxTile() {
         return std::max(row_max_table[(board_ >> 0) & ROW_MASK],
@@ -231,25 +239,24 @@ public:
                                           row_max_table[(board_ >> 48) & ROW_MASK])));
     }
 
-    row_t GetRow(int row){
-        return row_t((board_ >> (16ULL*row)) & ROW_MASK);
+    row_t GetRow(int row) {
+        return row_t((board_ >> (16ULL * row)) & ROW_MASK);
     }
 
     row_t GetCol(int col) {
         board_t transpose_board = ::Transpose(board_);
-        return row_t((transpose_board >> 16ULL*col) & ROW_MASK);
+        return row_t((transpose_board >> 16ULL * col) & ROW_MASK);
     }
 
     void SetRow(int row_id, row_t value) {
         board_ = (board_ ^ (board_t(GetRow(row_id)) << (16ULL * row_id))) | (board_t(value) << (16ULL * row_id));
     }
 
-    static void PrintBoard(board_t board) {
-        int i,j;
-        for(i=0; i<4; i++) {
-            for(j=0; j<4; j++) {
-                printf("%c", "0123456789abcdef"[(board)&0xf]);
-                board >>= 4;
+    void Print() {
+        int i, j;
+        for (i = 0; i < 4; i++) {
+            for (j = 0; j < 4; j++) {
+                printf("%c", "0123456789abcdef"[(board_ >> (4 * (4 * i + j))) & 0xf]);
             }
             printf("\n");
         }
@@ -271,12 +278,23 @@ public:
         board_ = ::Transpose(this->board_);
     }
 
+    bool IsTerminal() {
+        for (int direction = 0; direction < 4; ++direction) {
+            Board64 temp_board = board_;
+            temp_board.Slide(direction);
+            if (temp_board != board_)
+                return false;
+        }
+
+        return true;
+    }
+
 private:
     board_t board_;
 
-    row_t ReverseRow(int row_id) {
+    void ReverseRow(int row_id) {
         row_t row = GetRow(row_id);
-        row = (row&0xf000) >> 12 | (row&0x0f00) >> 4 | (row&0x00f0)<<4 | (row&0x000f) << 12;
+        row = (row & 0xf000) >> 12 | (row & 0x0f00) >> 4 | (row & 0x00f0) << 4 | (row & 0x000f) << 12;
 
         SetRow(row_id, row);
     }

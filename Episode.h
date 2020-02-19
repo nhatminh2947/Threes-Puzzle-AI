@@ -26,9 +26,11 @@ public:
         time_t time;
         board_t board;
 
-        Move(board_t board = 0, Action code = {}, reward_t reward = 0, time_t time = 0) : board(board), code(code),
-                                                                                          reward(reward),
-                                                                                          time(time) {}
+        Move(board_t board = 0, Action code = {}, reward_t reward = 0, time_t time = 0,
+             std::array<int, 4> bag = {0, 4, 4, 4}) : board(board),
+                                                      code(code),
+                                                      reward(reward),
+                                                      time(time) {}
 
         operator Action() const { return code; }
 
@@ -79,7 +81,7 @@ public:
         reward_t reward = move.Apply(state());
         if (reward == -1) return false;
         ep_moves.emplace_back(state().GetBoard(), move, reward, millisec() - ep_time);
-        ep_score = reward;
+        ep_score += reward;
         return true;
     }
 
@@ -98,7 +100,7 @@ public:
         switch (who) {
             case Action::Slide::type_:
                 return (size - 1) / 2;
-            case Action::Place::type:
+            case Action::Place::type_:
                 return (size - (size - 1) / 2);
             default:
                 return size;
@@ -109,7 +111,7 @@ public:
         time_t time = 0;
         size_t i = 2;
         switch (who) {
-            case Action::Place::type:
+            case Action::Place::type_:
                 if (ep_moves.size()) time += ep_moves[0].time, i = 1;
                 // no break;
             case Action::Slide::type_:
@@ -126,7 +128,7 @@ public:
         std::vector<Action> res;
         size_t i = 2;
         switch (who) {
-            case Action::Place::type:
+            case Action::Place::type_:
                 if (ep_moves.size()) res.push_back(ep_moves[0]), i = 1;
                 // no break;
             case Action::Slide::type_:
